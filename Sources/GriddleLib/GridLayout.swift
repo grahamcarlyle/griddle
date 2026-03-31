@@ -1,23 +1,38 @@
 import Foundation
 
 /// Represents a single cell in the grid, defined by its column and row span.
-struct GridCell: Codable, Equatable {
-    var col: Int
-    var row: Int
-    var colSpan: Int
-    var rowSpan: Int
+public struct GridCell: Codable, Equatable {
+    public var col: Int
+    public var row: Int
+    public var colSpan: Int
+    public var rowSpan: Int
+
+    public init(col: Int, row: Int, colSpan: Int, rowSpan: Int) {
+        self.col = col
+        self.row = row
+        self.colSpan = colSpan
+        self.rowSpan = rowSpan
+    }
 }
 
 /// A grid layout with a fixed number of columns and rows.
-struct GridLayout: Codable, Identifiable {
-    var id: String
-    var name: String
-    var columns: Int
-    var rows: Int
-    var cells: [GridCell]
+public struct GridLayout: Codable, Identifiable {
+    public var id: String
+    public var name: String
+    public var columns: Int
+    public var rows: Int
+    public var cells: [GridCell]
+
+    public init(id: String, name: String, columns: Int, rows: Int, cells: [GridCell]) {
+        self.id = id
+        self.name = name
+        self.columns = columns
+        self.rows = rows
+        self.cells = cells
+    }
 
     /// Generate default cells for a uniform grid.
-    static func uniform(id: String, name: String, columns: Int, rows: Int) -> GridLayout {
+    public static func uniform(id: String, name: String, columns: Int, rows: Int) -> GridLayout {
         var cells: [GridCell] = []
         for row in 0..<rows {
             for col in 0..<columns {
@@ -29,17 +44,27 @@ struct GridLayout: Codable, Identifiable {
 }
 
 /// Top-level configuration stored in ~/.config/griddle/config.json
-struct GriddleConfig: Codable {
-    var activeLayoutID: String
-    var layouts: [GridLayout]
-    var modifier: ModifierConfig
+public struct GriddleConfig: Codable {
+    public var activeLayoutID: String
+    public var layouts: [GridLayout]
+    public var modifier: ModifierConfig
 
-    struct ModifierConfig: Codable {
+    public struct ModifierConfig: Codable {
         /// Key modifiers used for grid bindings: "ctrl", "alt", "cmd", "shift"
-        var keys: [String]
+        public var keys: [String]
+
+        public init(keys: [String]) {
+            self.keys = keys
+        }
     }
 
-    static var `default`: GriddleConfig {
+    public init(activeLayoutID: String, layouts: [GridLayout], modifier: ModifierConfig) {
+        self.activeLayoutID = activeLayoutID
+        self.layouts = layouts
+        self.modifier = modifier
+    }
+
+    public static var `default`: GriddleConfig {
         GriddleConfig(
             activeLayoutID: "2x2",
             layouts: [
@@ -55,7 +80,7 @@ struct GriddleConfig: Codable {
 // MARK: - Config persistence
 
 extension GriddleConfig {
-    static var configURL: URL {
+    public static var configURL: URL {
         let home = FileManager.default.homeDirectoryForCurrentUser
         return home
             .appendingPathComponent(".config")
@@ -63,7 +88,7 @@ extension GriddleConfig {
             .appendingPathComponent("config.json")
     }
 
-    static func load() -> GriddleConfig {
+    public static func load() -> GriddleConfig {
         let url = configURL
         guard FileManager.default.fileExists(atPath: url.path),
               let data = try? Data(contentsOf: url),
@@ -73,7 +98,7 @@ extension GriddleConfig {
         return config
     }
 
-    func save() {
+    public func save() {
         let url = GriddleConfig.configURL
         let dir = url.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

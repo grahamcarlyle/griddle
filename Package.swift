@@ -7,9 +7,19 @@ let package = Package(
         .macOS(.v13)
     ],
     targets: [
+        .target(
+            name: "GriddleLib",
+            path: "Sources/GriddleLib"
+        ),
         .executableTarget(
             name: "Griddle",
+            dependencies: ["GriddleLib"],
             path: "Sources/Griddle"
+        ),
+        .testTarget(
+            name: "GriddleTests",
+            dependencies: ["GriddleLib"],
+            path: "Tests/GriddleTests"
         )
     ]
 )

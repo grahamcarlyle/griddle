@@ -2,25 +2,25 @@ import Cocoa
 import Carbon
 
 /// Maps keyboard shortcuts to grid cells and registers global hotkeys.
-class HotkeyManager {
+public class HotkeyManager {
     private var config: GriddleConfig
     private var eventHandlerRef: EventHandlerRef?
     private var hotKeyRefs: [EventHotKeyRef?] = []
     private var hotKeyMap: [UInt32: GridCell] = [:]  // hotKeyID -> GridCell
     private var nextID: UInt32 = 1
-    weak var hudController: HUDController?
+    public weak var hudController: HUDController?
 
-    init(config: GriddleConfig) {
+    public init(config: GriddleConfig) {
         self.config = config
     }
 
-    func update(config: GriddleConfig) {
+    public func update(config: GriddleConfig) {
         self.config = config
         unregisterAll()
         register()
     }
 
-    func register() {
+    public func register() {
         guard let layout = config.layouts.first(where: { $0.id == config.activeLayoutID }) else { return }
 
         // Install event handler once
@@ -95,7 +95,7 @@ class HotkeyManager {
     }
 
     /// Returns NSEvent modifier flags matching the configured modifier keys.
-    static func nsModifierFlags(from keys: [String]) -> NSEvent.ModifierFlags {
+    public static func nsModifierFlags(from keys: [String]) -> NSEvent.ModifierFlags {
         var flags: NSEvent.ModifierFlags = []
         for key in keys {
             switch key.lowercased() {
@@ -110,7 +110,7 @@ class HotkeyManager {
     }
 
     /// macOS virtual key codes for number row keys 1-9.
-    static let numberRowKeyCodes: [UInt16] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
+    public static let numberRowKeyCodes: [UInt16] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
 
     private func carbonModifiers(from keys: [String]) -> UInt32 {
         var mods: UInt32 = 0

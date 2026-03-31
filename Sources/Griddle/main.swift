@@ -1,5 +1,6 @@
 import Cocoa
 import ApplicationServices
+import GriddleLib
 
 // MARK: - Accessibility permission check
 

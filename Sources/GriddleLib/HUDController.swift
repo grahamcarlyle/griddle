@@ -1,7 +1,7 @@
 import Cocoa
 
 /// Manages the HUD grid overlay: shows on modifier-hold, supports two-step cell selection.
-class HUDController {
+public class HUDController {
     private var config: GriddleConfig
     private var panel: NSPanel?
     private var overlayView: HUDOverlayView?
@@ -20,11 +20,11 @@ class HUDController {
     private static let singleCellTimeout: TimeInterval = 1.0
     private static let escapeKeyCode: UInt16 = 53
 
-    init(config: GriddleConfig) {
+    public init(config: GriddleConfig) {
         self.config = config
     }
 
-    func update(config: GriddleConfig) {
+    public func update(config: GriddleConfig) {
         self.config = config
         if isVisible {
             dismissHUD()
@@ -33,7 +33,7 @@ class HUDController {
 
     // MARK: - Modifier Watch
 
-    func startModifierWatch() {
+    public func startModifierWatch() {
         flagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             self?.handleFlagsChanged(event)
         }
@@ -67,7 +67,7 @@ class HUDController {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.showDelay, execute: work)
     }
 
-    func cancelShowHUD() {
+    public func cancelShowHUD() {
         showDelayWork?.cancel()
         showDelayWork = nil
     }

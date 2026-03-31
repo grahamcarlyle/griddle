@@ -2,13 +2,13 @@ import Cocoa
 import SwiftUI
 
 /// Manages the menu-bar status item and the popover/settings UI.
-class StatusBarController: NSObject {
+public class StatusBarController: NSObject {
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
     private var configStore: ConfigStore
     private var hotkeyManager: HotkeyManager
 
-    init(configStore: ConfigStore, hotkeyManager: HotkeyManager) {
+    public init(configStore: ConfigStore, hotkeyManager: HotkeyManager) {
         self.configStore = configStore
         self.hotkeyManager = hotkeyManager
         super.init()

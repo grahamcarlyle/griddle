@@ -2,11 +2,11 @@ import Cocoa
 import ApplicationServices
 
 /// Moves and resizes the currently focused window to fit a grid cell on the display.
-struct WindowMover {
+public struct WindowMover {
 
     /// Positions the focused window according to `cell` within `layout` on the screen
     /// containing the focused window.
-    static func moveFocusedWindow(to cell: GridCell, in layout: GridLayout) {
+    public static func moveFocusedWindow(to cell: GridCell, in layout: GridLayout) {
         guard let window = focusedWindow() else { return }
         guard let screenFrame = screenFrame(for: window) else { return }
 
@@ -24,7 +24,7 @@ struct WindowMover {
     }
 
     /// Computes the bounding GridCell that spans from cell1 to cell2.
-    static func boundingCell(from cell1: GridCell, to cell2: GridCell) -> GridCell {
+    public static func boundingCell(from cell1: GridCell, to cell2: GridCell) -> GridCell {
         let minCol = min(cell1.col, cell2.col)
         let minRow = min(cell1.row, cell2.row)
         let maxCol = max(cell1.col + cell1.colSpan, cell2.col + cell2.colSpan)
@@ -33,7 +33,7 @@ struct WindowMover {
     }
 
     /// Returns the NSScreen containing the focused window (in AppKit coordinates).
-    static func screenForFocusedWindow() -> NSScreen? {
+    public static func screenForFocusedWindow() -> NSScreen? {
         guard let window = focusedWindow() else { return nil }
         var posValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &posValue) == .success,
