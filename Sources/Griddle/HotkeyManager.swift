@@ -8,6 +8,7 @@ class HotkeyManager {
     private var hotKeyRefs: [EventHotKeyRef?] = []
     private var hotKeyMap: [UInt32: GridCell] = [:]  // hotKeyID -> GridCell
     private var nextID: UInt32 = 1
+    weak var hudController: HUDController?
 
     init(config: GriddleConfig) {
         self.config = config
@@ -50,7 +51,7 @@ class HotkeyManager {
             let id = nextID
             nextID += 1
             hotKeyMap[id] = cell
-            var hotKeyID = EventHotKeyID(signature: fourCharCode("GRDL"), id: id)
+            let hotKeyID = EventHotKeyID(signature: fourCharCode("GRDL"), id: id)
             var hotKeyRef: EventHotKeyRef?
             RegisterEventHotKey(UInt32(keyCode), modifiers, hotKeyID, GetApplicationEventTarget(), 0, &hotKeyRef)
             hotKeyRefs.append(hotKeyRef)
@@ -78,6 +79,7 @@ class HotkeyManager {
                           &hotKeyID)
         guard let cell = hotKeyMap[hotKeyID.id] else { return noErr }
         guard let layout = config.layouts.first(where: { $0.id == config.activeLayoutID }) else { return noErr }
+        hudController?.cancelShowHUD()
         WindowMover.moveFocusedWindow(to: cell, in: layout)
         return noErr
     }
@@ -91,6 +93,24 @@ class HotkeyManager {
         let numberRowCodes = [18, 19, 20, 21, 23, 22, 26, 28, 25] // 1-9
         return Array(numberRowCodes.prefix(layout.cells.count))
     }
+
+    /// Returns NSEvent modifier flags matching the configured modifier keys.
+    static func nsModifierFlags(from keys: [String]) -> NSEvent.ModifierFlags {
+        var flags: NSEvent.ModifierFlags = []
+        for key in keys {
+            switch key.lowercased() {
+            case "ctrl":  flags.insert(.control)
+            case "alt":   flags.insert(.option)
+            case "cmd":   flags.insert(.command)
+            case "shift": flags.insert(.shift)
+            default: break
+            }
+        }
+        return flags
+    }
+
+    /// macOS virtual key codes for number row keys 1-9.
+    static let numberRowKeyCodes: [UInt16] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
 
     private func carbonModifiers(from keys: [String]) -> UInt32 {
         var mods: UInt32 = 0

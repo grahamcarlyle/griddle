@@ -9,10 +9,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "Griddle",
-            path: "Sources/Griddle",
-            resources: [
-                .process("Resources")
-            ]
+            path: "Sources/Griddle"
         )
     ]
 )

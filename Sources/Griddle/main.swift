@@ -4,7 +4,7 @@ import ApplicationServices
 // MARK: - Accessibility permission check
 
 func checkAccessibilityPermission() -> Bool {
-    let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString: true]
+    let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as NSString: false]
     return AXIsProcessTrustedWithOptions(options)
 }
 
@@ -15,14 +15,19 @@ app.setActivationPolicy(.accessory)  // Run as background app (no Dock icon)
 
 let configStore = ConfigStore()
 let hotkeyManager = HotkeyManager(config: configStore.config)
+let hudController = HUDController(config: configStore.config)
+hotkeyManager.hudController = hudController
 
-// Re-register hotkeys whenever config changes
+// Re-register hotkeys and HUD whenever config changes
 var cancellable = configStore.$config.sink { newConfig in
     hotkeyManager.update(config: newConfig)
+    hudController.update(config: newConfig)
 }
 
 // Check accessibility permission
-if !checkAccessibilityPermission() {
+let hasAccess = checkAccessibilityPermission()
+NSLog("Griddle: Accessibility permission = \(hasAccess)")
+if !hasAccess {
     let alert = NSAlert()
     alert.messageText = "Accessibility Permission Required"
     alert.informativeText = "Griddle needs Accessibility access to move windows.\n\nPlease grant access in System Settings → Privacy & Security → Accessibility, then relaunch Griddle."
@@ -36,8 +41,9 @@ if !checkAccessibilityPermission() {
     exit(0)
 }
 
-// Register initial hotkeys
+// Register initial hotkeys and start modifier watch for HUD
 hotkeyManager.register()
+hudController.startModifierWatch()
 
 // Set up status bar
 let statusBarController = StatusBarController(configStore: configStore, hotkeyManager: hotkeyManager)

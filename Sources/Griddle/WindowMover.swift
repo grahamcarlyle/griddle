@@ -23,6 +23,27 @@ struct WindowMover {
         setFrame(targetFrame, for: window)
     }
 
+    /// Computes the bounding GridCell that spans from cell1 to cell2.
+    static func boundingCell(from cell1: GridCell, to cell2: GridCell) -> GridCell {
+        let minCol = min(cell1.col, cell2.col)
+        let minRow = min(cell1.row, cell2.row)
+        let maxCol = max(cell1.col + cell1.colSpan, cell2.col + cell2.colSpan)
+        let maxRow = max(cell1.row + cell1.rowSpan, cell2.row + cell2.rowSpan)
+        return GridCell(col: minCol, row: minRow, colSpan: maxCol - minCol, rowSpan: maxRow - minRow)
+    }
+
+    /// Returns the NSScreen containing the focused window (in AppKit coordinates).
+    static func screenForFocusedWindow() -> NSScreen? {
+        guard let window = focusedWindow() else { return nil }
+        var posValue: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &posValue) == .success,
+              let posVal = posValue else { return nil }
+        var pos = CGPoint.zero
+        AXValueGetValue(posVal as! AXValue, .cgPoint, &pos)
+        let screens = NSScreen.screens
+        return screens.first(where: { $0.frame.contains(pos) }) ?? NSScreen.main ?? screens.first
+    }
+
     // MARK: - Private helpers
 
     private static func focusedWindow() -> AXUIElement? {
@@ -50,7 +71,6 @@ struct WindowMover {
         // Convert from AppKit coordinates (bottom-left origin) to screen coordinates (top-left origin)
         // AX uses top-left origin matching Quartz display coordinates
         let displayBounds = CGDisplayBounds(CGMainDisplayID())
-        let screenAppKit = screen.frame
 
         // The visible frame minus dock/menu bar
         let visibleAppKit = screen.visibleFrame
