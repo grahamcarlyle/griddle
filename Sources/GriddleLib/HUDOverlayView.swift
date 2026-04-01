@@ -3,6 +3,7 @@ import Cocoa
 /// Draws a grid overlay with numbered cells for the HUD.
 class HUDOverlayView: NSView {
     var layout: GridLayout?
+    var keyLabels: [String]?
     var highlightedIndex: Int? { didSet { needsDisplay = true } }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -41,8 +42,8 @@ class HUDOverlayView: NSView {
             path.lineWidth = isHighlighted ? 3 : 2
             path.stroke()
 
-            // Number label
-            let label = "\(index + 1)"
+            // Cell label
+            let label = (keyLabels != nil && index < keyLabels!.count) ? keyLabels![index] : "\(index + 1)"
             let attrs: [NSAttributedString.Key: Any] = [
                 .font: NSFont.systemFont(ofSize: 48, weight: .bold),
                 .foregroundColor: NSColor.white.withAlphaComponent(isHighlighted ? 1.0 : 0.9)

@@ -43,11 +43,18 @@ public struct GridLayout: Codable, Identifiable {
     }
 }
 
+/// Whether grid cells are mapped to spatial letter keys or number keys.
+public enum KeyStyle: String, Codable, CaseIterable {
+    case spatial
+    case numbers
+}
+
 /// Top-level configuration stored in ~/.config/griddle/config.json
 public struct GriddleConfig: Codable {
     public var activeLayoutID: String
     public var layouts: [GridLayout]
     public var modifier: ModifierConfig
+    public var keyStyle: KeyStyle
 
     public struct ModifierConfig: Codable {
         /// Key modifiers used for grid bindings: "ctrl", "alt", "cmd", "shift"
@@ -58,10 +65,20 @@ public struct GriddleConfig: Codable {
         }
     }
 
-    public init(activeLayoutID: String, layouts: [GridLayout], modifier: ModifierConfig) {
+    public init(activeLayoutID: String, layouts: [GridLayout], modifier: ModifierConfig, keyStyle: KeyStyle = .spatial) {
         self.activeLayoutID = activeLayoutID
         self.layouts = layouts
         self.modifier = modifier
+        self.keyStyle = keyStyle
+    }
+
+    // Custom decoding for backward compatibility — missing keyStyle defaults to .spatial
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        activeLayoutID = try container.decode(String.self, forKey: .activeLayoutID)
+        layouts = try container.decode([GridLayout].self, forKey: .layouts)
+        modifier = try container.decode(ModifierConfig.self, forKey: .modifier)
+        keyStyle = try container.decodeIfPresent(KeyStyle.self, forKey: .keyStyle) ?? .spatial
     }
 
     public static var `default`: GriddleConfig {

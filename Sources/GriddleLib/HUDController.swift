@@ -1,22 +1,20 @@
 import Cocoa
 
-/// Manages the HUD grid overlay: shows on modifier-hold, supports two-step cell selection.
+/// Manages the HUD grid overlay: tap-toggle activation, two-step cell selection.
 public class HUDController {
     private var config: GriddleConfig
     private var panel: NSPanel?
     private var overlayView: HUDOverlayView?
     private var isVisible = false
-    private var showDelayWork: DispatchWorkItem?
-    private var dismissTimerWork: DispatchWorkItem?
+    private var modifiersTapped = false
     private var singleCellTimerWork: DispatchWorkItem?
     private var flagsMonitor: Any?
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var activeLayout: GridLayout?
+    private var activeKeyCodes: [UInt16] = []
     private var firstSelectedIndex: Int?
 
-    private static let showDelay: TimeInterval = 0.2
-    private static let dismissTimeout: TimeInterval = 3.0
     private static let singleCellTimeout: TimeInterval = 1.0
     private static let escapeKeyCode: UInt16 = 53
 
@@ -31,7 +29,7 @@ public class HUDController {
         }
     }
 
-    // MARK: - Modifier Watch
+    // MARK: - Modifier Watch (tap-toggle)
 
     public func startModifierWatch() {
         flagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
@@ -42,45 +40,38 @@ public class HUDController {
     private func handleFlagsChanged(_ event: NSEvent) {
         let requiredFlags = HotkeyManager.nsModifierFlags(from: config.modifier.keys)
         let currentFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let modifiersHeld = currentFlags.contains(requiredFlags)
 
-        if isVisible {
-            if !currentFlags.contains(requiredFlags) {
+        if modifiersHeld {
+            // Modifiers just pressed — mark as tapped (may be cancelled by fast hotkey)
+            modifiersTapped = true
+        } else if modifiersTapped {
+            // Modifiers released and tap wasn't cancelled — toggle HUD
+            modifiersTapped = false
+            if isVisible {
                 dismissHUD()
-            }
-        } else {
-            if currentFlags.contains(requiredFlags) {
-                scheduleShowHUD()
             } else {
-                cancelShowHUD()
+                showHUD()
             }
         }
     }
 
-    // MARK: - Show/Cancel Delay
-
-    private func scheduleShowHUD() {
-        guard showDelayWork == nil else { return }
-        let work = DispatchWorkItem { [weak self] in
-            self?.showHUD()
-        }
-        showDelayWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.showDelay, execute: work)
-    }
-
+    /// Called by HotkeyManager when a fast modifier+key combo fires.
+    /// Cancels the pending tap so the HUD doesn't toggle on modifier release.
     public func cancelShowHUD() {
-        showDelayWork?.cancel()
-        showDelayWork = nil
+        modifiersTapped = false
     }
 
     // MARK: - Show/Dismiss HUD
 
     private func showHUD() {
-        showDelayWork = nil
         guard !isVisible else { return }
         guard let layout = config.layouts.first(where: { $0.id == config.activeLayoutID }) else { return }
         guard let screen = WindowMover.screenForFocusedWindow() ?? NSScreen.main else { return }
 
         let screenFrame = screen.visibleFrame
+        let keyCodes = HotkeyManager.keyCodes(for: config.keyStyle, columns: layout.columns, rows: layout.rows)
+        let keyLabels = HotkeyManager.keyLabels(for: config.keyStyle, columns: layout.columns, rows: layout.rows)
 
         let panel = NSPanel(
             contentRect: screenFrame,
@@ -97,6 +88,7 @@ public class HUDController {
 
         let overlayView = HUDOverlayView(frame: NSRect(origin: .zero, size: screenFrame.size))
         overlayView.layout = layout
+        overlayView.keyLabels = keyLabels
         panel.contentView = overlayView
 
         panel.orderFrontRegardless()
@@ -105,15 +97,12 @@ public class HUDController {
         self.overlayView = overlayView
         self.isVisible = true
         self.firstSelectedIndex = nil
+        self.activeKeyCodes = keyCodes
 
         installEventTap(layout: layout)
-        startDismissTimer()
     }
 
     private func dismissHUD() {
-        cancelShowHUD()
-        dismissTimerWork?.cancel()
-        dismissTimerWork = nil
         singleCellTimerWork?.cancel()
         singleCellTimerWork = nil
         firstSelectedIndex = nil
@@ -121,6 +110,7 @@ public class HUDController {
         panel?.orderOut(nil)
         panel = nil
         overlayView = nil
+        activeKeyCodes = []
         isVisible = false
     }
 
@@ -143,10 +133,6 @@ public class HUDController {
             firstSelectedIndex = index
             overlayView?.highlightedIndex = index
 
-            // Reset the main dismiss timer since we got interaction
-            dismissTimerWork?.cancel()
-            dismissTimerWork = nil
-
             // Start single-cell timer — if no second key within timeout, move to just this cell
             let work = DispatchWorkItem { [weak self] in
                 guard let self = self, let layout = self.activeLayout, index < layout.cells.count else { return }
@@ -157,16 +143,6 @@ public class HUDController {
             singleCellTimerWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.singleCellTimeout, execute: work)
         }
-    }
-
-    // MARK: - Dismiss Timer
-
-    private func startDismissTimer() {
-        let work = DispatchWorkItem { [weak self] in
-            self?.dismissHUD()
-        }
-        dismissTimerWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.dismissTimeout, execute: work)
     }
 
     // MARK: - CGEvent Tap (key suppression)
@@ -211,10 +187,7 @@ public class HUDController {
             return nil
         }
 
-        guard let layout = controller.activeLayout else { return Unmanaged.passRetained(event) }
-        let cellCount = min(layout.cells.count, HotkeyManager.numberRowKeyCodes.count)
-        let keyCodes = HotkeyManager.numberRowKeyCodes.prefix(cellCount)
-
+        let keyCodes = controller.activeKeyCodes
         if let cellIndex = keyCodes.firstIndex(of: keyCode) {
             let index = keyCodes.distance(from: keyCodes.startIndex, to: cellIndex)
             DispatchQueue.main.async {

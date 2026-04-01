@@ -24,6 +24,8 @@ struct SettingsView: View {
 
             modifierPicker
 
+            keyStylePicker
+
             Divider()
 
             addLayoutButton
@@ -67,7 +69,10 @@ struct SettingsView: View {
                 Text("Grid Preview — \(layout.columns)×\(layout.rows)")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                GridPreviewView(layout: layout)
+                GridPreviewView(
+                    layout: layout,
+                    keyLabels: HotkeyManager.keyLabels(for: configStore.config.keyStyle, columns: layout.columns, rows: layout.rows)
+                )
                     .frame(height: 120)
             }
         }
@@ -92,9 +97,29 @@ struct SettingsView: View {
                     .toggleStyle(.button)
                 }
             }
-            Text("Modifier + 1–9 moves window to that grid cell (left-to-right, top-to-bottom)")
+            Text("Tap modifiers to show grid overlay, or hold modifier + key for instant move")
                 .font(.caption)
                 .foregroundColor(.secondary)
+        }
+    }
+
+    private var keyStylePicker: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Key Style")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            Picker("", selection: Binding(
+                get: { configStore.config.keyStyle },
+                set: { style in
+                    configStore.config.keyStyle = style
+                    hotkeyManager.update(config: configStore.config)
+                }
+            )) {
+                Text("Spatial (Q/W/E, A/S/D, Z/X/C)").tag(KeyStyle.spatial)
+                Text("Numbers (1–9)").tag(KeyStyle.numbers)
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
         }
     }
 
@@ -156,6 +181,7 @@ struct SettingsView: View {
 
 struct GridPreviewView: View {
     let layout: GridLayout
+    var keyLabels: [String]?
 
     var body: some View {
         GeometryReader { geo in
@@ -168,6 +194,7 @@ struct GridPreviewView: View {
                     let y = CGFloat(cell.row) * cellH
                     let w = cellW * CGFloat(cell.colSpan)
                     let h = cellH * CGFloat(cell.rowSpan)
+                    let label = (keyLabels != nil && index < keyLabels!.count) ? keyLabels![index] : "\(index + 1)"
 
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.accentColor.opacity(0.15))
@@ -176,7 +203,7 @@ struct GridPreviewView: View {
                                 .stroke(Color.accentColor, lineWidth: 1)
                         )
                         .overlay(
-                            Text("\(index + 1)")
+                            Text(label)
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                         )

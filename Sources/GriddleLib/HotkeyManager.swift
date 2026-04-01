@@ -84,14 +84,62 @@ public class HotkeyManager {
         return noErr
     }
 
-    // MARK: - Helpers
+    // MARK: - Key Code Mapping
 
-    /// Returns key codes in row-major order (top-left to bottom-right) for the grid.
-    /// Uses number row keys 1-9 (up to 9 cells).
+    // Spatial key codes: rows of letter keys matching screen grid position
+    // Q=12  W=13  E=14  R=15  T=17  Y=16
+    // A=0   S=1   D=2   F=3   G=5   H=4
+    // Z=6   X=7   C=8   V=9   B=11  N=45
+    private static let spatialRows: [[UInt16]] = [
+        [12, 13, 14, 15, 17, 16],  // Q W E R T Y
+        [0,  1,  2,  3,  5,  4],   // A S D F G H
+        [6,  7,  8,  9,  11, 45],  // Z X C V B N
+    ]
+
+    private static let spatialLabelsRows: [[String]] = [
+        ["Q", "W", "E", "R", "T", "Y"],
+        ["A", "S", "D", "F", "G", "H"],
+        ["Z", "X", "C", "V", "B", "N"],
+    ]
+
+    private static let numberRowCodes: [UInt16] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
+
+    /// Returns key codes for the given style and grid dimensions, in row-major order.
+    public static func keyCodes(for style: KeyStyle, columns: Int, rows: Int) -> [UInt16] {
+        switch style {
+        case .spatial:
+            var codes: [UInt16] = []
+            for row in 0..<min(rows, spatialRows.count) {
+                for col in 0..<min(columns, spatialRows[row].count) {
+                    codes.append(spatialRows[row][col])
+                }
+            }
+            return codes
+        case .numbers:
+            let count = min(columns * rows, numberRowCodes.count)
+            return Array(numberRowCodes.prefix(count))
+        }
+    }
+
+    /// Returns display labels for the given style and grid dimensions, in row-major order.
+    public static func keyLabels(for style: KeyStyle, columns: Int, rows: Int) -> [String] {
+        switch style {
+        case .spatial:
+            var labels: [String] = []
+            for row in 0..<min(rows, spatialLabelsRows.count) {
+                for col in 0..<min(columns, spatialLabelsRows[row].count) {
+                    labels.append(spatialLabelsRows[row][col])
+                }
+            }
+            return labels
+        case .numbers:
+            let count = min(columns * rows, numberRowCodes.count)
+            return (1...count).map { "\($0)" }
+        }
+    }
+
     private func gridKeyCodes(for layout: GridLayout) -> [Int] {
-        // macOS virtual key codes for keys 1-9 on number row
-        let numberRowCodes = [18, 19, 20, 21, 23, 22, 26, 28, 25] // 1-9
-        return Array(numberRowCodes.prefix(layout.cells.count))
+        return Self.keyCodes(for: config.keyStyle, columns: layout.columns, rows: layout.rows).map { Int($0) }
     }
 
     /// Returns NSEvent modifier flags matching the configured modifier keys.
@@ -108,9 +156,6 @@ public class HotkeyManager {
         }
         return flags
     }
-
-    /// macOS virtual key codes for number row keys 1-9.
-    public static let numberRowKeyCodes: [UInt16] = [18, 19, 20, 21, 23, 22, 26, 28, 25]
 
     private func carbonModifiers(from keys: [String]) -> UInt32 {
         var mods: UInt32 = 0
