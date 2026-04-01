@@ -5,60 +5,51 @@ A macOS window grid utility inspired by GNOME Tactile. Assign focused windows to
 ## Features
 
 - Global hotkeys move the frontmost window into a grid cell
+- **HUD grid overlay** — hold modifier keys to see a visual grid with numbered cells
+- **Multi-cell selection** — press two numbers to span a window across multiple cells (bounding box)
 - Configurable grid layouts (2×2, 3×2, 3×3, or any custom grid)
 - Menu-bar icon with settings popover
-- Visual grid preview with cell numbers
 - Configurable modifier keys (Ctrl, Alt/Option, Cmd, Shift)
+- Launch at login option
 - Config persisted to `~/.config/griddle/config.json`
 
 ## How it works
 
 With the default layout (2×2) and modifier keys (Ctrl+Alt):
 
-| Key | Position |
-|-----|----------|
-| Ctrl+Alt+1 | Top-left |
-| Ctrl+Alt+2 | Top-right |
-| Ctrl+Alt+3 | Bottom-left |
-| Ctrl+Alt+4 | Bottom-right |
+**Quick move:** Press Ctrl+Alt+1 to instantly move the window to the top-left cell.
 
-For a 3×2 layout:
+**HUD overlay:** Hold Ctrl+Alt for ~200ms to show a green grid overlay on screen. Then:
+- Press a number key (1–4) to move the window to that cell
+- Press two number keys to span the window across those cells (e.g. 1 then 4 = full screen)
+- Press Escape or release the modifier keys to dismiss
 
-| Key | Position |
-|-----|----------|
-| Ctrl+Alt+1 | Row 1, Col 1 |
-| Ctrl+Alt+2 | Row 1, Col 2 |
-| Ctrl+Alt+3 | Row 1, Col 3 |
-| Ctrl+Alt+4 | Row 2, Col 1 |
-| Ctrl+Alt+5 | Row 2, Col 2 |
-| Ctrl+Alt+6 | Row 2, Col 3 |
+Cells are numbered left-to-right, top-to-bottom:
 
-Cells are numbered left-to-right, top-to-bottom.
+| Key | Position (2×2) |
+|-----|----------------|
+| 1   | Top-left       |
+| 2   | Top-right      |
+| 3   | Bottom-left    |
+| 4   | Bottom-right   |
 
 ## Requirements
 
 - macOS 13 (Ventura) or later
-- Xcode or Swift toolchain
+- Swift toolchain (managed via [mise](https://mise.jdx.dev/))
 - Accessibility permission (prompted on first launch)
 
 ## Build & Run
 
 ```bash
-cd griddle
-swift build -c release
-.build/release/Griddle
-```
-
-Or open in Xcode:
-
-```bash
-swift package generate-xcodeproj
-open Griddle.xcodeproj
+./build.sh                                       # Build + package as .app bundle (ad-hoc signed)
+open .build/Griddle.app                          # Run
+cp -r .build/Griddle.app /Applications/          # Install
 ```
 
 ## First launch
 
-On first launch, macOS will ask for Accessibility permission. Grant it in:
+On first launch, Griddle will prompt for Accessibility permission. Grant it in:
 
 **System Settings → Privacy & Security → Accessibility → Griddle**
 
@@ -66,31 +57,10 @@ Then relaunch the app.
 
 ## Configuration
 
-The config file lives at `~/.config/griddle/config.json`. It is automatically created and updated when you change settings via the menu-bar popover.
+Settings are available via the menu-bar icon (grid icon). You can:
+- Switch between grid layouts
+- Add custom layouts (up to 6 columns × 4 rows)
+- Choose modifier keys
+- Enable launch at login
 
-Example config:
-
-```json
-{
-  "activeLayoutID": "2x2",
-  "layouts": [
-    {
-      "id": "2x2",
-      "name": "2×2",
-      "columns": 2,
-      "rows": 2,
-      "cells": [
-        {"col": 0, "row": 0, "colSpan": 1, "rowSpan": 1},
-        {"col": 1, "row": 0, "colSpan": 1, "rowSpan": 1},
-        {"col": 0, "row": 1, "colSpan": 1, "rowSpan": 1},
-        {"col": 1, "row": 1, "colSpan": 1, "rowSpan": 1}
-      ]
-    }
-  ],
-  "modifier": {
-    "keys": ["ctrl", "alt"]
-  }
-}
-```
-
-You can define custom layouts with non-uniform cells (different `colSpan`/`rowSpan`) directly in the JSON.
+The config file lives at `~/.config/griddle/config.json` and is automatically updated when you change settings. You can also define custom layouts with non-uniform cells (different `colSpan`/`rowSpan`) directly in the JSON.

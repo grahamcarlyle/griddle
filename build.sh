@@ -29,9 +29,11 @@ cat > "$APP_DIR/Info.plist" << 'EOF'
 </plist>
 EOF
 
+# Ad-hoc sign after all bundle contents are in place
+codesign --force --sign - .build/Griddle.app
+
 echo ""
 echo "Build complete: .build/Griddle.app"
 echo ""
 echo "To run:    open .build/Griddle.app"
 echo "To install: cp -r .build/Griddle.app /Applications/"
-

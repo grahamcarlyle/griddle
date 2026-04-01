@@ -1,4 +1,5 @@
 import SwiftUI
+import ServiceManagement
 
 struct SettingsView: View {
     @ObservedObject var configStore: ConfigStore
@@ -7,6 +8,7 @@ struct SettingsView: View {
     @State private var showAddLayout = false
     @State private var newCols = 3
     @State private var newRows = 2
+    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -27,6 +29,8 @@ struct SettingsView: View {
             addLayoutButton
 
             Spacer()
+
+            launchAtLoginToggle
 
             quitButton
         }
@@ -119,6 +123,23 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private var launchAtLoginToggle: some View {
+        Toggle("Launch at Login", isOn: $launchAtLogin)
+            .onChange(of: launchAtLogin) { newValue in
+                do {
+                    if newValue {
+                        try SMAppService.mainApp.register()
+                    } else {
+                        try SMAppService.mainApp.unregister()
+                    }
+                } catch {
+                    NSLog("Griddle: Failed to update launch-at-login: \(error)")
+                    // Revert toggle on failure
+                    launchAtLogin = SMAppService.mainApp.status == .enabled
+                }
+            }
     }
 
     private var quitButton: some View {

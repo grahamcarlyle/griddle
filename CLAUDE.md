@@ -39,7 +39,7 @@ Griddle is a macOS menu-bar utility (Swift, SwiftUI, Swift Package Manager) that
 - **HUDOverlayView.swift** — `NSView` subclass that draws the fullscreen grid overlay with numbered cells and selection highlighting.
 - **WindowMover.swift** — Uses Accessibility API (`AXUIElement`) to get the focused window, determines which screen it's on, converts between AppKit (bottom-left origin) and Quartz/AX (top-left origin) coordinate systems, then repositions/resizes the window.
 - **StatusBarController.swift** — Creates the menu-bar icon and hosts a `NSPopover` containing the SwiftUI `SettingsView`.
-- **SettingsView.swift** — SwiftUI popover UI: layout picker, grid preview, modifier key toggles, add/remove layout controls, quit button.
+- **SettingsView.swift** — SwiftUI popover UI: layout picker, grid preview, modifier key toggles, launch at login toggle (via `SMAppService`), add/remove layout controls, quit button.
 - **main.swift** — Entry point. Sets up the app as `.accessory`, checks Accessibility permission, and starts the run loop.
 
 ### Package structure
