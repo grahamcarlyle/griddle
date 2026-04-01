@@ -6,9 +6,10 @@ cd "$(dirname "$0")"
 swift build -c release
 
 APP_DIR=".build/Griddle.app/Contents"
-mkdir -p "$APP_DIR/MacOS"
+mkdir -p "$APP_DIR/MacOS" "$APP_DIR/Resources"
 
 cp .build/release/Griddle "$APP_DIR/MacOS/Griddle"
+cp Griddle.icns "$APP_DIR/Resources/Griddle.icns"
 
 cat > "$APP_DIR/Info.plist" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -23,6 +24,8 @@ cat > "$APP_DIR/Info.plist" << 'EOF'
     <string>Griddle</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <key>CFBundleIconFile</key>
+    <string>Griddle</string>
     <key>LSUIElement</key>
     <true/>
 </dict>
