@@ -6,7 +6,7 @@ public class HotkeyManager {
     private var config: GriddleConfig
     private var eventHandlerRef: EventHandlerRef?
     private var hotKeyRefs: [EventHotKeyRef?] = []
-    private var hotKeyMap: [UInt32: GridCell] = [:]  // hotKeyID -> GridCell
+    private var hotKeyMap: [UInt32: Int] = [:]  // hotKeyID -> cell index
     private var nextID: UInt32 = 1
     public weak var hudController: HUDController?
 
@@ -21,8 +21,6 @@ public class HotkeyManager {
     }
 
     public func register() {
-        guard let layout = config.layouts.first(where: { $0.id == config.activeLayoutID }) else { return }
-
         // Install event handler once
         if eventHandlerRef == nil {
             var eventSpec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
@@ -40,17 +38,15 @@ public class HotkeyManager {
 
         let modifiers = carbonModifiers(from: config.modifier.keys)
 
-        // We use numpad/number keys to correspond to grid cells.
-        // Layout assigns keys in row-major order from numpad 1 (bottom-left on numpad)
-        // but we map left-to-right, top-to-bottom with keys 1..9 on the number row.
-        // Key assignment: top-left = key 1, going right then down.
-        let keyCodes = gridKeyCodes(for: layout)
+        // Register hotkeys for the max grid size across all screen layouts.
+        // The actual layout is resolved per-screen when a hotkey fires.
+        let maxDims = config.maxGridDimensions()
+        let keyCodes = Self.keyCodes(for: config.keyStyle, columns: maxDims.columns, rows: maxDims.rows)
 
-        for (index, cell) in layout.cells.prefix(keyCodes.count).enumerated() {
-            let keyCode = keyCodes[index]
+        for (index, keyCode) in keyCodes.enumerated() {
             let id = nextID
             nextID += 1
-            hotKeyMap[id] = cell
+            hotKeyMap[id] = index
             let hotKeyID = EventHotKeyID(signature: fourCharCode("GRDL"), id: id)
             var hotKeyRef: EventHotKeyRef?
             RegisterEventHotKey(UInt32(keyCode), modifiers, hotKeyID, GetApplicationEventTarget(), 0, &hotKeyRef)
@@ -77,8 +73,16 @@ public class HotkeyManager {
                           MemoryLayout<EventHotKeyID>.size,
                           nil,
                           &hotKeyID)
-        guard let cell = hotKeyMap[hotKeyID.id] else { return noErr }
-        guard let layout = config.layouts.first(where: { $0.id == config.activeLayoutID }) else { return noErr }
+        guard let cellIndex = hotKeyMap[hotKeyID.id] else { return noErr }
+
+        // Resolve layout for the focused window's screen
+        let screenKey = WindowMover.screenForFocusedWindow().map { GriddleConfig.screenKey(for: $0) }
+        guard let layout = config.layoutForScreen(key: screenKey ?? "") else { return noErr }
+
+        // Ignore if this cell index doesn't exist in the screen's layout
+        guard cellIndex < layout.cells.count else { return noErr }
+        let cell = layout.cells[cellIndex]
+
         hudController?.cancelShowHUD()
         WindowMover.moveFocusedWindow(to: cell, in: layout)
         return noErr

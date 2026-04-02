@@ -83,4 +83,65 @@ struct ConfigCodableTests {
     func defaultModifiers() {
         #expect(GriddleConfig.default.modifier.keys == ["ctrl", "alt"])
     }
+
+    @Test("default screenLayouts is empty")
+    func defaultScreenLayouts() {
+        #expect(GriddleConfig.default.screenLayouts.isEmpty)
+    }
+
+    @Test("screenLayouts roundtrips through JSON")
+    func screenLayoutsRoundtrip() throws {
+        var config = GriddleConfig.default
+        config.screenLayouts = ["Monitor A @ 0,0": "3x2", "Monitor B @ -1920,0": "2x2"]
+        let data = try JSONEncoder().encode(config)
+        let decoded = try JSONDecoder().decode(GriddleConfig.self, from: data)
+        #expect(decoded.screenLayouts == config.screenLayouts)
+    }
+
+    @Test("missing screenLayouts in JSON defaults to empty")
+    func missingScreenLayoutsDefaultsToEmpty() throws {
+        let json = """
+        {
+            "activeLayoutID": "2x2",
+            "layouts": [],
+            "modifier": {"keys": ["ctrl"]}
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(GriddleConfig.self, from: json)
+        #expect(decoded.screenLayouts.isEmpty)
+    }
+
+    @Test("layoutForScreen resolves screen-specific layout")
+    func layoutForScreenSpecific() {
+        var config = GriddleConfig.default
+        config.screenLayouts = ["External @ 0,0": "3x2"]
+        let layout = config.layoutForScreen(key: "External @ 0,0")
+        #expect(layout?.id == "3x2")
+    }
+
+    @Test("layoutForScreen falls back to activeLayoutID")
+    func layoutForScreenFallback() {
+        let config = GriddleConfig.default
+        let layout = config.layoutForScreen(key: "Unknown @ 999,999")
+        #expect(layout?.id == config.activeLayoutID)
+    }
+
+    @Test("maxGridDimensions returns largest across all screen layouts")
+    func maxGridDimensions() {
+        var config = GriddleConfig.default  // has 2x2, 3x2, 3x3
+        config.activeLayoutID = "2x2"
+        config.screenLayouts = ["External @ 0,0": "3x3"]
+        let dims = config.maxGridDimensions()
+        #expect(dims.columns == 3)
+        #expect(dims.rows == 3)
+    }
+
+    @Test("maxGridDimensions with only default layout")
+    func maxGridDimensionsDefault() {
+        var config = GriddleConfig.default
+        config.activeLayoutID = "2x2"
+        let dims = config.maxGridDimensions()
+        #expect(dims.columns == 2)
+        #expect(dims.rows == 2)
+    }
 }

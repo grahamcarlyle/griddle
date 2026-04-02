@@ -18,6 +18,8 @@ struct SettingsView: View {
 
             activeLayoutPicker
 
+            screenLayoutPickers
+
             layoutGrid
 
             Divider()
@@ -44,7 +46,7 @@ struct SettingsView: View {
 
     private var activeLayoutPicker: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Active Layout")
+            Text("Default Layout")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             Picker("", selection: Binding(
@@ -60,6 +62,46 @@ struct SettingsView: View {
             }
             .pickerStyle(.menu)
             .labelsHidden()
+        }
+    }
+
+    private var screenLayoutPickers: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            let screens = NSScreen.screens
+            if screens.count > 1 {
+                Text("Per-Screen Layouts")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                ForEach(screens, id: \.self) { screen in
+                    let key = GriddleConfig.screenKey(for: screen)
+                    HStack {
+                        Text(screen.localizedName)
+                            .font(.caption)
+                            .lineLimit(1)
+                        Spacer()
+                        Picker("", selection: Binding(
+                            get: {
+                                configStore.config.screenLayouts[key] ?? ""
+                            },
+                            set: { id in
+                                if id.isEmpty {
+                                    configStore.removeScreenLayout(screen: screen)
+                                } else {
+                                    configStore.setScreenLayout(screen: screen, layoutID: id)
+                                }
+                                hotkeyManager.update(config: configStore.config)
+                            }
+                        )) {
+                            Text("Default").tag("")
+                            ForEach(configStore.config.layouts) { layout in
+                                Text(layout.name).tag(layout.id)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 120)
+                    }
+                }
+            }
         }
     }
 

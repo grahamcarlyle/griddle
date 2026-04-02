@@ -1,4 +1,5 @@
 import Foundation
+import Cocoa
 
 /// Represents a single cell in the grid, defined by its column and row span.
 public struct GridCell: Codable, Equatable {
@@ -55,6 +56,8 @@ public struct GriddleConfig: Codable {
     public var layouts: [GridLayout]
     public var modifier: ModifierConfig
     public var keyStyle: KeyStyle
+    /// Per-screen layout overrides. Key is screen identifier (name + position), value is layout ID.
+    public var screenLayouts: [String: String]
 
     public struct ModifierConfig: Codable {
         /// Key modifiers used for grid bindings: "ctrl", "alt", "cmd", "shift"
@@ -65,20 +68,44 @@ public struct GriddleConfig: Codable {
         }
     }
 
-    public init(activeLayoutID: String, layouts: [GridLayout], modifier: ModifierConfig, keyStyle: KeyStyle = .spatial) {
+    public init(activeLayoutID: String, layouts: [GridLayout], modifier: ModifierConfig, keyStyle: KeyStyle = .spatial, screenLayouts: [String: String] = [:]) {
         self.activeLayoutID = activeLayoutID
         self.layouts = layouts
         self.modifier = modifier
         self.keyStyle = keyStyle
+        self.screenLayouts = screenLayouts
     }
 
-    // Custom decoding for backward compatibility — missing keyStyle defaults to .spatial
+    // Custom decoding for backward compatibility
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         activeLayoutID = try container.decode(String.self, forKey: .activeLayoutID)
         layouts = try container.decode([GridLayout].self, forKey: .layouts)
         modifier = try container.decode(ModifierConfig.self, forKey: .modifier)
         keyStyle = try container.decodeIfPresent(KeyStyle.self, forKey: .keyStyle) ?? .spatial
+        screenLayouts = try container.decodeIfPresent([String: String].self, forKey: .screenLayouts) ?? [:]
+    }
+
+    /// Resolves the layout for a given screen, falling back to activeLayoutID.
+    public func layoutForScreen(key: String) -> GridLayout? {
+        if let layoutID = screenLayouts[key],
+           let layout = layouts.first(where: { $0.id == layoutID }) {
+            return layout
+        }
+        return layouts.first(where: { $0.id == activeLayoutID })
+    }
+
+    /// Returns the maximum grid dimensions across all layouts that could be active on any screen.
+    public func maxGridDimensions() -> (columns: Int, rows: Int) {
+        var maxCols = 0
+        var maxRows = 0
+        // Check all layouts referenced by screen mappings + the default
+        let relevantIDs = Set(screenLayouts.values + [activeLayoutID])
+        for layout in layouts where relevantIDs.contains(layout.id) {
+            maxCols = max(maxCols, layout.columns)
+            maxRows = max(maxRows, layout.rows)
+        }
+        return (maxCols, maxRows)
     }
 
     public static var `default`: GriddleConfig {
@@ -91,6 +118,17 @@ public struct GriddleConfig: Codable {
             ],
             modifier: ModifierConfig(keys: ["ctrl", "alt"])
         )
+    }
+}
+
+// MARK: - Screen identification
+
+extension GriddleConfig {
+    /// Generates a stable key for a screen based on its name and position.
+    public static func screenKey(for screen: NSScreen) -> String {
+        let name = screen.localizedName
+        let origin = screen.frame.origin
+        return "\(name) @ \(Int(origin.x)),\(Int(origin.y))"
     }
 }
 

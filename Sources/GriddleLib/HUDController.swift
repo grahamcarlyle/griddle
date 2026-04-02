@@ -66,8 +66,9 @@ public class HUDController {
 
     private func showHUD() {
         guard !isVisible else { return }
-        guard let layout = config.layouts.first(where: { $0.id == config.activeLayoutID }) else { return }
         guard let screen = WindowMover.screenForFocusedWindow() ?? NSScreen.main else { return }
+        let screenKey = GriddleConfig.screenKey(for: screen)
+        guard let layout = config.layoutForScreen(key: screenKey) else { return }
 
         let screenFrame = screen.visibleFrame
         let keyCodes = HotkeyManager.keyCodes(for: config.keyStyle, columns: layout.columns, rows: layout.rows)
