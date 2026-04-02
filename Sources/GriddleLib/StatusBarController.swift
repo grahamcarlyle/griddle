@@ -7,6 +7,7 @@ public class StatusBarController: NSObject {
     private var popover: NSPopover!
     private var configStore: ConfigStore
     private var hotkeyManager: HotkeyManager
+    private var clickMonitor: Any?
 
     public init(configStore: ConfigStore, hotkeyManager: HotkeyManager) {
         self.configStore = configStore
@@ -36,9 +37,20 @@ public class StatusBarController: NSObject {
 
     @objc private func togglePopover() {
         if popover.isShown {
-            popover.performClose(nil)
+            closePopover()
         } else if let button = statusItem.button {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+                self?.closePopover()
+            }
+        }
+    }
+
+    private func closePopover() {
+        popover.performClose(nil)
+        if let monitor = clickMonitor {
+            NSEvent.removeMonitor(monitor)
+            clickMonitor = nil
         }
     }
 }
