@@ -44,6 +44,15 @@ public struct GridLayout: Codable, Identifiable {
     }
 }
 
+/// HUD overlay colour theme.
+public enum HUDTheme: String, Codable, CaseIterable {
+    case system
+    case green
+    case highContrast
+    case purple
+    case orange
+}
+
 /// Whether grid cells are mapped to spatial letter keys or number keys.
 public enum KeyStyle: String, Codable, CaseIterable {
     case spatial
@@ -56,6 +65,7 @@ public struct GriddleConfig: Codable {
     public var layouts: [GridLayout]
     public var modifier: ModifierConfig
     public var keyStyle: KeyStyle
+    public var hudTheme: HUDTheme
     /// Per-screen layout overrides. Key is screen identifier (name + position), value is layout ID.
     public var screenLayouts: [String: String]
 
@@ -68,11 +78,12 @@ public struct GriddleConfig: Codable {
         }
     }
 
-    public init(activeLayoutID: String, layouts: [GridLayout], modifier: ModifierConfig, keyStyle: KeyStyle = .spatial, screenLayouts: [String: String] = [:]) {
+    public init(activeLayoutID: String, layouts: [GridLayout], modifier: ModifierConfig, keyStyle: KeyStyle = .spatial, hudTheme: HUDTheme = .system, screenLayouts: [String: String] = [:]) {
         self.activeLayoutID = activeLayoutID
         self.layouts = layouts
         self.modifier = modifier
         self.keyStyle = keyStyle
+        self.hudTheme = hudTheme
         self.screenLayouts = screenLayouts
     }
 
@@ -83,6 +94,7 @@ public struct GriddleConfig: Codable {
         layouts = try container.decode([GridLayout].self, forKey: .layouts)
         modifier = try container.decode(ModifierConfig.self, forKey: .modifier)
         keyStyle = try container.decodeIfPresent(KeyStyle.self, forKey: .keyStyle) ?? .spatial
+        hudTheme = try container.decodeIfPresent(HUDTheme.self, forKey: .hudTheme) ?? .system
         screenLayouts = try container.decodeIfPresent([String: String].self, forKey: .screenLayouts) ?? [:]
     }
 

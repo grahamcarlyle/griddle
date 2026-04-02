@@ -1,19 +1,36 @@
 import Cocoa
 
-/// Draws a grid overlay with numbered cells for the HUD.
+/// Draws a grid overlay with themed cells for the HUD.
 class HUDOverlayView: NSView {
     var layout: GridLayout?
     var keyLabels: [String]?
+    var theme: HUDTheme = .system
     var highlightedIndex: Int? { didSet { needsDisplay = true } }
+
+    private func themeColors() -> (cellColor: NSColor, bgAlpha: CGFloat) {
+        switch theme {
+        case .system:
+            return (NSColor.controlAccentColor, 0.3)
+        case .green:
+            return (NSColor(calibratedRed: 0.2, green: 0.8, blue: 0.4, alpha: 1.0), 0.3)
+        case .highContrast:
+            return (NSColor.white, 0.6)
+        case .purple:
+            return (NSColor(calibratedRed: 0.6, green: 0.3, blue: 0.9, alpha: 1.0), 0.3)
+        case .orange:
+            return (NSColor(calibratedRed: 1.0, green: 0.6, blue: 0.2, alpha: 1.0), 0.3)
+        }
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         guard let layout = layout, let _ = NSGraphicsContext.current?.cgContext else { return }
 
         let bounds = self.bounds
+        let colors = themeColors()
 
         // Semi-transparent dark background
-        NSColor.black.withAlphaComponent(0.3).setFill()
+        NSColor.black.withAlphaComponent(colors.bgAlpha).setFill()
         NSBezierPath.fill(bounds)
 
         let cellWidth = bounds.width / CGFloat(layout.columns)
@@ -33,12 +50,12 @@ class HUDOverlayView: NSView {
 
             // Fill
             let fillAlpha: CGFloat = isHighlighted ? 0.45 : 0.2
-            NSColor(calibratedRed: 0.2, green: 0.8, blue: 0.4, alpha: fillAlpha).setFill()
+            colors.cellColor.withAlphaComponent(fillAlpha).setFill()
             path.fill()
 
             // Border
             let borderAlpha: CGFloat = isHighlighted ? 1.0 : 0.8
-            NSColor(calibratedRed: 0.2, green: 0.8, blue: 0.4, alpha: borderAlpha).setStroke()
+            colors.cellColor.withAlphaComponent(borderAlpha).setStroke()
             path.lineWidth = isHighlighted ? 3 : 2
             path.stroke()
 

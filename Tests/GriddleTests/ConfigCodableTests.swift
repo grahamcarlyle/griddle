@@ -144,4 +144,31 @@ struct ConfigCodableTests {
         #expect(dims.columns == 2)
         #expect(dims.rows == 2)
     }
+
+    @Test("default hudTheme is system")
+    func defaultHudTheme() {
+        #expect(GriddleConfig.default.hudTheme == .system)
+    }
+
+    @Test("hudTheme roundtrips through JSON")
+    func hudThemeRoundtrip() throws {
+        var config = GriddleConfig.default
+        config.hudTheme = .purple
+        let data = try JSONEncoder().encode(config)
+        let decoded = try JSONDecoder().decode(GriddleConfig.self, from: data)
+        #expect(decoded.hudTheme == .purple)
+    }
+
+    @Test("missing hudTheme in JSON defaults to system")
+    func missingHudThemeDefaultsToSystem() throws {
+        let json = """
+        {
+            "activeLayoutID": "2x2",
+            "layouts": [],
+            "modifier": {"keys": ["ctrl"]}
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(GriddleConfig.self, from: json)
+        #expect(decoded.hudTheme == .system)
+    }
 }

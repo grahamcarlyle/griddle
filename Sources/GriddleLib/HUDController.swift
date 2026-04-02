@@ -90,6 +90,7 @@ public class HUDController {
         let overlayView = HUDOverlayView(frame: NSRect(origin: .zero, size: screenFrame.size))
         overlayView.layout = layout
         overlayView.keyLabels = keyLabels
+        overlayView.theme = config.hudTheme
         panel.contentView = overlayView
 
         panel.orderFrontRegardless()

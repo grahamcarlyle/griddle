@@ -28,6 +28,8 @@ struct SettingsView: View {
 
             keyStylePicker
 
+            themePicker
+
             Divider()
 
             addLayoutButton
@@ -159,6 +161,28 @@ struct SettingsView: View {
             )) {
                 Text("Spatial (Q/W/E, A/S/D, Z/X/C)").tag(KeyStyle.spatial)
                 Text("Numbers (1–9)").tag(KeyStyle.numbers)
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+        }
+    }
+
+    private var themePicker: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("HUD Theme")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            Picker("", selection: Binding(
+                get: { configStore.config.hudTheme },
+                set: { theme in
+                    configStore.config.hudTheme = theme
+                }
+            )) {
+                Text("System").tag(HUDTheme.system)
+                Text("Green").tag(HUDTheme.green)
+                Text("High Contrast").tag(HUDTheme.highContrast)
+                Text("Purple").tag(HUDTheme.purple)
+                Text("Orange").tag(HUDTheme.orange)
             }
             .pickerStyle(.menu)
             .labelsHidden()
