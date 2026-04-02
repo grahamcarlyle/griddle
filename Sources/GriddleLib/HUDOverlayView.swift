@@ -1,11 +1,23 @@
 import Cocoa
 
+/// A rectangular region of grid cells to highlight.
+struct HighlightRegion: Equatable {
+    var minCol: Int
+    var minRow: Int
+    var maxCol: Int
+    var maxRow: Int
+
+    func contains(col: Int, row: Int) -> Bool {
+        col >= minCol && col <= maxCol && row >= minRow && row <= maxRow
+    }
+}
+
 /// Draws a grid overlay with themed cells for the HUD.
 class HUDOverlayView: NSView {
     var layout: GridLayout?
     var keyLabels: [String]?
     var theme: HUDTheme = .system
-    var highlightedIndex: Int? { didSet { needsDisplay = true } }
+    var highlightedRegion: HighlightRegion? { didSet { needsDisplay = true } }
 
     private func themeColors() -> (cellColor: NSColor, bgAlpha: CGFloat) {
         switch theme {
@@ -46,7 +58,7 @@ class HUDOverlayView: NSView {
             let cellRect = CGRect(x: x + 4, y: y + 4, width: w - 8, height: h - 8)
             let path = NSBezierPath(roundedRect: cellRect, xRadius: 8, yRadius: 8)
 
-            let isHighlighted = index == highlightedIndex
+            let isHighlighted = highlightedRegion?.contains(col: cell.col, row: cell.row) ?? false
 
             // Fill
             let fillAlpha: CGFloat = isHighlighted ? 0.45 : 0.2
