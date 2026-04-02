@@ -16,7 +16,7 @@ struct SettingsView: View {
                     .padding(.top, 4)
 
                 // MARK: - Layout Section
-                GroupBox("Layout") {
+                GroupBox(label: Label("Layout", systemImage: "square.grid.2x2").font(.subheadline.bold())) {
                     VStack(alignment: .leading, spacing: 8) {
                         LabeledContent("Default") {
                             Picker("", selection: Binding(
@@ -77,7 +77,7 @@ struct SettingsView: View {
                 }
 
                 // MARK: - Hotkeys Section
-                GroupBox("Hotkeys") {
+                GroupBox(label: Label("Hotkeys", systemImage: "keyboard").font(.subheadline.bold())) {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             ForEach(["ctrl", "alt", "cmd", "shift"], id: \.self) { key in
