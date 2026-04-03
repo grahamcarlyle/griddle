@@ -5,6 +5,8 @@ on: [push]
 jobs:
   build:
     runs-on: macos-14
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -19,3 +21,17 @@ jobs:
         with:
           name: Griddle
           path: Griddle.zip
+
+      - name: Publish latest release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest Build
+          prerelease: true
+          files: Griddle.zip
+          body: |
+            Automatic build from commit ${{ github.sha }}.
+
+            **Install:** Download `Griddle.zip`, unzip, and move `Griddle.app` to `/Applications`.
+            **Note:** On first open, right-click → Open (or run `xattr -cr Griddle.app`) to bypass Gatekeeper.
