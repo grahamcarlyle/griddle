@@ -53,6 +53,29 @@ By default, keys are mapped spatially to match the grid layout:
 
 For larger grids the mapping extends across the keyboard rows (Q/W/E/R/T/Y, A/S/D/F/G/H, Z/X/C/V/B/N). You can switch to number keys (1–9) in the settings.
 
+## Alternatives
+
+macOS 15 Sequoia adds edge and corner snapping via Option-drag, which covers the basics for many users. If you need more, here is how the common options compare:
+
+| Tool | Price | Interaction model | Visual HUD | Arbitrary grid | Multi-cell span |
+|---|---|---|---|---|---|
+| **Griddle** | Free | Hold modifier → press key(s) | Yes | Yes (custom layouts) | Yes |
+| macOS 15 built-in | Free | Mouse drag to edge/corner | No | No (fixed zones only) | No |
+| Rectangle | Free | Drag to edge or keyboard shortcut | No | No (fixed positions) | No |
+| Magnet | $3 | Drag to edge or keyboard shortcut | No | No (fixed positions) | No |
+| Moom | $15 | Hover green button or shortcuts | Partial (button pop-up) | Yes (saved layouts) | Yes |
+| BetterSnapTool | $3 | Modifier + drag | No | Yes (custom snap areas) | No |
+| Amethyst | Free | Automatic (xmonad-style tiling) | No | — | — |
+| Yabai | Free | CLI / scripting | No | — | — |
+
+**Prefer Griddle if** you want to place windows without touching the mouse, see exactly where a window will land before it snaps, and define your own grid rather than working from a fixed set of positions.
+
+**Prefer Rectangle or Magnet if** drag-to-edge snapping or a handful of keyboard shortcuts covers your workflow and you don't need a visual overlay.
+
+**Prefer Moom if** you need saved multi-app layouts, per-app rules, or pixel-level positioning.
+
+**Prefer Amethyst or Yabai if** you want windows to tile themselves automatically rather than placing them manually.
+
 ## Requirements
 
 - macOS 13 (Ventura) or later
