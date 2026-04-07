@@ -48,4 +48,10 @@ public class ConfigStore: ObservableObject {
         let key = GriddleConfig.screenKey(for: screen)
         config.screenLayouts.removeValue(forKey: key)
     }
+
+    public func cycleLayout() {
+        guard config.layouts.count > 1 else { return }
+        let currentIndex = config.layouts.firstIndex(where: { $0.id == config.activeLayoutID }) ?? 0
+        config.activeLayoutID = config.layouts[(currentIndex + 1) % config.layouts.count].id
+    }
 }

@@ -8,7 +8,10 @@ public class HotkeyManager {
     private var hotKeyRefs: [EventHotKeyRef?] = []
     private var hotKeyMap: [UInt32: Int] = [:]  // hotKeyID -> cell index
     private var nextID: UInt32 = 1
+    private var cycleHotKeyRef: EventHotKeyRef?
+    private var cycleHotKeyID: UInt32 = 0
     public weak var hudController: HUDController?
+    public var onLayoutCycle: (() -> Void)?
 
     public init(config: GriddleConfig) {
         self.config = config
@@ -52,6 +55,14 @@ public class HotkeyManager {
             RegisterEventHotKey(UInt32(keyCode), modifiers, hotKeyID, GetApplicationEventTarget(), 0, &hotKeyRef)
             hotKeyRefs.append(hotKeyRef)
         }
+
+        // Register modifier+Tab to cycle through layouts
+        let tabKeyCode: UInt32 = 48
+        let cycleID = nextID
+        nextID += 1
+        cycleHotKeyID = cycleID
+        let cycleHKID = EventHotKeyID(signature: fourCharCode("GRDL"), id: cycleID)
+        RegisterEventHotKey(tabKeyCode, modifiers, cycleHKID, GetApplicationEventTarget(), 0, &cycleHotKeyRef)
     }
 
     func unregisterAll() {
@@ -60,6 +71,9 @@ public class HotkeyManager {
         }
         hotKeyRefs.removeAll()
         hotKeyMap.removeAll()
+        if let ref = cycleHotKeyRef { UnregisterEventHotKey(ref) }
+        cycleHotKeyRef = nil
+        cycleHotKeyID = 0
         nextID = 1
     }
 
@@ -73,6 +87,11 @@ public class HotkeyManager {
                           MemoryLayout<EventHotKeyID>.size,
                           nil,
                           &hotKeyID)
+        if hotKeyID.id == cycleHotKeyID {
+            onLayoutCycle?()
+            return noErr
+        }
+
         guard let cellIndex = hotKeyMap[hotKeyID.id] else { return noErr }
 
         // Resolve layout for the focused window's screen
