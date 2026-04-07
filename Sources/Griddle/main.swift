@@ -18,6 +18,10 @@ let configStore = ConfigStore()
 let hotkeyManager = HotkeyManager(config: configStore.config)
 let hudController = HUDController(config: configStore.config)
 hotkeyManager.hudController = hudController
+hotkeyManager.onLayoutCycle = {
+    configStore.cycleLayout()
+    hudController.showHUD()
+}
 
 // Re-register hotkeys and HUD whenever config changes
 var cancellable = configStore.$config.sink { newConfig in

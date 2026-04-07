@@ -75,7 +75,7 @@ public class HUDController {
 
     // MARK: - Show/Dismiss HUD
 
-    private func showHUD() {
+    public func showHUD() {
         guard !isVisible else { return }
         guard let screen = WindowMover.screenForFocusedWindow() ?? NSScreen.main else { return }
         let screenKey = GriddleConfig.screenKey(for: screen)
