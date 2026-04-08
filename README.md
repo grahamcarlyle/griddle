@@ -25,6 +25,7 @@ Griddle is a lightweight menu-bar utility inspired by [GNOME Tactile](https://ex
 - **Customisable grids** — built-in 2×2, 3×2, 3×3 layouts, or create your own (up to 6×4)
 - **Per-screen layouts** — assign different grids to different monitors
 - **HUD themes** — System, Green, High Contrast, Purple, or Orange
+- **Cycle layouts** — modifier + Space to show HUD and cycle through layouts (configurable key)
 - **Configurable modifiers** — any combination of Ctrl, Option, Cmd, Shift
 - **Runs in the menu bar** — no Dock icon, minimal footprint
 - **Launch at login** — start tiling automatically
@@ -34,6 +35,8 @@ Griddle is a lightweight menu-bar utility inspired by [GNOME Tactile](https://ex
 With the default layout (2×2) and modifier keys (Ctrl+Alt):
 
 **Quick move:** Press Ctrl+Alt+Q to instantly move the window to the top-left cell.
+
+**Cycle layouts:** Press Ctrl+Alt+Space to show the HUD with the current layout. Press again to cycle to the next layout, then select a cell.
 
 **HUD overlay:** Tap and release Ctrl+Alt to toggle a grid overlay on screen. Then:
 - Press a letter key to move the window to that cell
@@ -86,9 +89,11 @@ macOS 15 Sequoia adds edge and corner snapping via Option-drag, which covers the
 
 ```bash
 ./build.sh                                       # Build + package as .app bundle (ad-hoc signed)
-open .build/Griddle.app                          # Run
-cp -r .build/Griddle.app /Applications/          # Install
+./install.sh                                     # Install to /Applications and remove quarantine
+open /Applications/Griddle.app                   # Run
 ```
+
+For downloaded releases, unzip and run `./install.sh` (or pass a custom path: `./install.sh path/to/Griddle.app`).
 
 ## First launch
 
@@ -106,6 +111,7 @@ Settings are available via the menu-bar icon (grid icon). You can:
 - Choose between spatial letter keys (Q/W/A/S) or number keys (1–9)
 - Pick a HUD colour theme
 - Choose modifier keys
+- Change the layout cycle key (Space, Tab, /, 0, −, =)
 - Enable launch at login
 
 The config file lives at `~/.config/griddle/config.json` and is automatically updated when you change settings. You can also define custom layouts with non-uniform cells (different `colSpan`/`rowSpan`) directly in the JSON.
