@@ -110,6 +110,22 @@ struct SettingsView: View {
                             .labelsHidden()
                         }
 
+                        LabeledContent("Cycle layout") {
+                            Picker("", selection: Binding(
+                                get: { configStore.config.cycleKey },
+                                set: { key in
+                                    configStore.config.cycleKey = key
+                                    hotkeyManager.update(config: configStore.config)
+                                }
+                            )) {
+                                ForEach(CycleKey.allCases, id: \.self) { key in
+                                    Text(key.displayName).tag(key)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                        }
+
                         LabeledContent("Theme") {
                             Picker("", selection: Binding(
                                 get: { configStore.config.hudTheme },

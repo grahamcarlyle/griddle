@@ -53,6 +53,38 @@ public enum HUDTheme: String, Codable, CaseIterable {
     case orange
 }
 
+/// Key used with modifier to cycle through layouts.
+public enum CycleKey: String, Codable, CaseIterable {
+    case space
+    case tab
+    case slash
+    case zero
+    case minus
+    case equals
+
+    public var keyCode: UInt32 {
+        switch self {
+        case .space:  return 49
+        case .tab:    return 48
+        case .slash:  return 44
+        case .zero:   return 29
+        case .minus:  return 27
+        case .equals: return 24
+        }
+    }
+
+    public var displayName: String {
+        switch self {
+        case .space:  return "Space"
+        case .tab:    return "Tab"
+        case .slash:  return "/"
+        case .zero:   return "0"
+        case .minus:  return "−"
+        case .equals: return "="
+        }
+    }
+}
+
 /// Whether grid cells are mapped to spatial letter keys or number keys.
 public enum KeyStyle: String, Codable, CaseIterable {
     case spatial
@@ -66,6 +98,7 @@ public struct GriddleConfig: Codable {
     public var modifier: ModifierConfig
     public var keyStyle: KeyStyle
     public var hudTheme: HUDTheme
+    public var cycleKey: CycleKey
     /// Per-screen layout overrides. Key is screen identifier (name + position), value is layout ID.
     public var screenLayouts: [String: String]
 
@@ -78,12 +111,13 @@ public struct GriddleConfig: Codable {
         }
     }
 
-    public init(activeLayoutID: String, layouts: [GridLayout], modifier: ModifierConfig, keyStyle: KeyStyle = .spatial, hudTheme: HUDTheme = .system, screenLayouts: [String: String] = [:]) {
+    public init(activeLayoutID: String, layouts: [GridLayout], modifier: ModifierConfig, keyStyle: KeyStyle = .spatial, hudTheme: HUDTheme = .system, cycleKey: CycleKey = .space, screenLayouts: [String: String] = [:]) {
         self.activeLayoutID = activeLayoutID
         self.layouts = layouts
         self.modifier = modifier
         self.keyStyle = keyStyle
         self.hudTheme = hudTheme
+        self.cycleKey = cycleKey
         self.screenLayouts = screenLayouts
     }
 
@@ -95,6 +129,7 @@ public struct GriddleConfig: Codable {
         modifier = try container.decode(ModifierConfig.self, forKey: .modifier)
         keyStyle = try container.decodeIfPresent(KeyStyle.self, forKey: .keyStyle) ?? .spatial
         hudTheme = try container.decodeIfPresent(HUDTheme.self, forKey: .hudTheme) ?? .system
+        cycleKey = try container.decodeIfPresent(CycleKey.self, forKey: .cycleKey) ?? .space
         screenLayouts = try container.decodeIfPresent([String: String].self, forKey: .screenLayouts) ?? [:]
     }
 

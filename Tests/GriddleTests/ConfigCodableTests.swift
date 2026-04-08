@@ -159,6 +159,33 @@ struct ConfigCodableTests {
         #expect(decoded.hudTheme == .purple)
     }
 
+    @Test("default cycleKey is space")
+    func defaultCycleKey() {
+        #expect(GriddleConfig.default.cycleKey == .space)
+    }
+
+    @Test("cycleKey roundtrips through JSON")
+    func cycleKeyRoundtrip() throws {
+        var config = GriddleConfig.default
+        config.cycleKey = .tab
+        let data = try JSONEncoder().encode(config)
+        let decoded = try JSONDecoder().decode(GriddleConfig.self, from: data)
+        #expect(decoded.cycleKey == .tab)
+    }
+
+    @Test("missing cycleKey in JSON defaults to space")
+    func missingCycleKeyDefaultsToSpace() throws {
+        let json = """
+        {
+            "activeLayoutID": "2x2",
+            "layouts": [],
+            "modifier": {"keys": ["ctrl"]}
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(GriddleConfig.self, from: json)
+        #expect(decoded.cycleKey == .space)
+    }
+
     @Test("missing hudTheme in JSON defaults to system")
     func missingHudThemeDefaultsToSystem() throws {
         let json = """
