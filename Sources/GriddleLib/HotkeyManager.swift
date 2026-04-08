@@ -6,12 +6,20 @@ public class HotkeyManager {
     private var config: GriddleConfig
     private var eventHandlerRef: EventHandlerRef?
     private var hotKeyRefs: [EventHotKeyRef?] = []
-    private var hotKeyMap: [UInt32: Int] = [:]  // hotKeyID -> cell index
+    private var hotKeyIDToKeyCode: [UInt32: UInt16] = [:]  // hotKeyID -> keyCode
+    private var keyMap: KeyMap?
     private var nextID: UInt32 = 1
     private var cycleHotKeyRef: EventHotKeyRef?
     private var cycleHotKeyID: UInt32 = 0
     public weak var hudController: HUDController?
     public var onLayoutCycle: (() -> Void)?
+
+    // Prefix key state
+    private struct PrefixState {
+        let children: [KeyChild]
+    }
+    private var prefixState: PrefixState?
+    private var prefixTimer: DispatchWorkItem?
 
     public init(config: GriddleConfig) {
         self.config = config
@@ -41,15 +49,16 @@ public class HotkeyManager {
 
         let modifiers = carbonModifiers(from: config.modifier.keys)
 
-        // Register hotkeys for the max grid size across all screen layouts.
-        // The actual layout is resolved per-screen when a hotkey fires.
+        // Build KeyMap for the max grid size across all screen layouts.
         let maxDims = config.maxGridDimensions()
-        let keyCodes = Self.keyCodes(for: config.keyStyle, columns: maxDims.columns, rows: maxDims.rows)
+        let map = KeyMap.build(for: config.keyStyle, columns: maxDims.columns, rows: maxDims.rows)
+        self.keyMap = map
 
-        for (index, keyCode) in keyCodes.enumerated() {
+        // Register hotkeys for all top-level key codes (both direct and prefix keys).
+        for keyCode in map.topLevelKeyCodes {
             let id = nextID
             nextID += 1
-            hotKeyMap[id] = index
+            hotKeyIDToKeyCode[id] = keyCode
             let hotKeyID = EventHotKeyID(signature: fourCharCode("GRDL"), id: id)
             var hotKeyRef: EventHotKeyRef?
             RegisterEventHotKey(UInt32(keyCode), modifiers, hotKeyID, GetApplicationEventTarget(), 0, &hotKeyRef)
@@ -69,7 +78,11 @@ public class HotkeyManager {
             if let ref = ref { UnregisterEventHotKey(ref) }
         }
         hotKeyRefs.removeAll()
-        hotKeyMap.removeAll()
+        hotKeyIDToKeyCode.removeAll()
+        keyMap = nil
+        prefixTimer?.cancel()
+        prefixTimer = nil
+        prefixState = nil
         if let ref = cycleHotKeyRef { UnregisterEventHotKey(ref) }
         cycleHotKeyRef = nil
         cycleHotKeyID = 0
@@ -91,8 +104,45 @@ public class HotkeyManager {
             return noErr
         }
 
-        guard let cellIndex = hotKeyMap[hotKeyID.id] else { return noErr }
+        guard let keyCode = hotKeyIDToKeyCode[hotKeyID.id],
+              let map = keyMap else { return noErr }
 
+        // Check if we're resolving a pending prefix
+        if let prefix = prefixState {
+            prefixState = nil
+            prefixTimer?.cancel()
+            prefixTimer = nil
+            if let child = prefix.children.first(where: { $0.keyCode == keyCode }) {
+                return moveWindowToCell(index: child.cellIndex)
+            }
+            // Not a valid child — fall through to handle as new top-level key
+        }
+
+        // Top-level key lookup
+        guard let binding = map.bindings[keyCode] else { return noErr }
+
+        switch binding {
+        case .direct(let cellIndex):
+            return moveWindowToCell(index: cellIndex)
+
+        case .prefix(let children):
+            // Enter prefix state and auto-show HUD for visual feedback
+            prefixState = PrefixState(children: children)
+            hudController?.cancelShowHUD()
+            hudController?.showHUDInPrefixMode(children: children)
+
+            // Start prefix timeout
+            let timer = DispatchWorkItem { [weak self] in
+                self?.prefixState = nil
+                self?.prefixTimer = nil
+            }
+            prefixTimer = timer
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: timer)
+            return noErr
+        }
+    }
+
+    private func moveWindowToCell(index cellIndex: Int) -> OSStatus {
         // Resolve layout for the focused window's screen
         let screenKey = WindowMover.screenForFocusedWindow().map { GriddleConfig.screenKey(for: $0) }
         guard let layout = config.layoutForScreen(key: screenKey ?? "") else { return noErr }

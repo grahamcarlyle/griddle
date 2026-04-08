@@ -71,7 +71,7 @@ struct SettingsView: View {
                 if let layout = configStore.activeLayout {
                     GridPreviewView(
                         layout: layout,
-                        keyLabels: HotkeyManager.keyLabels(for: configStore.config.keyStyle, columns: layout.columns, rows: layout.rows)
+                        keyLabels: KeyMap.build(for: configStore.config.keyStyle, columns: layout.columns, rows: layout.rows).labels
                     )
                     .frame(height: 100)
                 }
@@ -239,7 +239,7 @@ struct GridPreviewView: View {
                         )
                         .overlay(
                             Text(label)
-                                .font(.caption2)
+                                .font(label.count > 2 ? .system(size: 8) : .caption2)
                                 .foregroundColor(.secondary)
                         )
                         .frame(width: w - 4, height: h - 4)

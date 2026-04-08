@@ -19,6 +19,10 @@ class HUDOverlayView: NSView {
     var theme: HUDTheme = .system
     var highlightedRegion: HighlightRegion? { didSet { needsDisplay = true } }
 
+    /// When set, only these cell indices are reachable (prefix mode).
+    /// Cells not in this set are dimmed. Each entry maps cellIndex → child key label.
+    var prefixReachableCells: [Int: String]? { didSet { needsDisplay = true } }
+
     private func themeColors() -> (cellColor: NSColor, bgAlpha: CGFloat) {
         switch theme {
         case .system:
@@ -60,22 +64,47 @@ class HUDOverlayView: NSView {
 
             let isHighlighted = highlightedRegion?.contains(col: cell.col, row: cell.row) ?? false
 
+            // In prefix mode, dim cells that aren't reachable
+            let isDimmed: Bool
+            if let reachable = prefixReachableCells {
+                isDimmed = reachable[index] == nil
+            } else {
+                isDimmed = false
+            }
+
             // Fill
-            let fillAlpha: CGFloat = isHighlighted ? 0.45 : 0.2
+            let fillAlpha: CGFloat
+            if isDimmed {
+                fillAlpha = 0.05
+            } else if isHighlighted {
+                fillAlpha = 0.45
+            } else {
+                fillAlpha = 0.2
+            }
             colors.cellColor.withAlphaComponent(fillAlpha).setFill()
             path.fill()
 
             // Border
-            let borderAlpha: CGFloat = isHighlighted ? 1.0 : 0.8
+            let borderAlpha: CGFloat = isDimmed ? 0.2 : (isHighlighted ? 1.0 : 0.8)
             colors.cellColor.withAlphaComponent(borderAlpha).setStroke()
             path.lineWidth = isHighlighted ? 3 : 2
             path.stroke()
 
-            // Cell label
-            let label = (keyLabels != nil && index < keyLabels!.count) ? keyLabels![index] : "\(index + 1)"
+            // Cell label — in prefix mode show only the child key; otherwise full label
+            let label: String
+            if let childLabel = prefixReachableCells?[index] {
+                label = childLabel
+            } else if let labels = keyLabels, index < labels.count {
+                label = labels[index]
+            } else {
+                label = "\(index + 1)"
+            }
+
+            let fontSize: CGFloat = label.count > 2 ? 32 : 48
+            let labelAlpha: CGFloat = isDimmed ? 0.15 : (isHighlighted ? 1.0 : 0.9)
             let attrs: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: 48, weight: .bold),
-                .foregroundColor: NSColor.white.withAlphaComponent(isHighlighted ? 1.0 : 0.9)
+                .font: NSFont.systemFont(ofSize: fontSize, weight: .bold),
+                .foregroundColor: NSColor.white.withAlphaComponent(labelAlpha)
             ]
             let size = label.size(withAttributes: attrs)
             let labelPoint = NSPoint(

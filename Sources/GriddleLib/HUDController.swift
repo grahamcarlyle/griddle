@@ -12,7 +12,15 @@ public class HUDController {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var activeLayout: GridLayout?
-    private var activeKeyCodes: [UInt16] = []
+    private var activeKeyMap: KeyMap?
+
+    // Prefix key state
+    private struct PrefixState {
+        let prefixKeyCode: UInt16
+        let children: [KeyChild]
+    }
+    private var prefixState: PrefixState?
+    private var prefixTimer: DispatchWorkItem?
 
     // Selection state
     private enum SelectionStage { case choosingAnchor, expanding }
@@ -82,8 +90,8 @@ public class HUDController {
         guard let layout = config.layoutForScreen(key: screenKey) else { return }
 
         let screenFrame = screen.visibleFrame
-        let keyCodes = HotkeyManager.keyCodes(for: config.keyStyle, columns: layout.columns, rows: layout.rows)
-        let keyLabels = HotkeyManager.keyLabels(for: config.keyStyle, columns: layout.columns, rows: layout.rows)
+        let keyMap = KeyMap.build(for: config.keyStyle, columns: layout.columns, rows: layout.rows)
+        let keyLabels = keyMap.labels
 
         let panel = NSPanel(
             contentRect: screenFrame,
@@ -109,7 +117,7 @@ public class HUDController {
         self.panel = panel
         self.overlayView = overlayView
         self.isHUDVisible = true
-        self.activeKeyCodes = keyCodes
+        self.activeKeyMap = keyMap
         self.selectionStage = .choosingAnchor
         self.cursorRevealed = false
         self.cursorCol = 0
@@ -121,12 +129,15 @@ public class HUDController {
     private func dismissHUD() {
         inactivityTimer?.cancel()
         inactivityTimer = nil
+        prefixTimer?.cancel()
+        prefixTimer = nil
+        prefixState = nil
         selectionStage = .choosingAnchor
         removeEventTap()
         panel?.orderOut(nil)
         panel = nil
         overlayView = nil
-        activeKeyCodes = []
+        activeKeyMap = nil
         isHUDVisible = false
     }
 
@@ -259,6 +270,37 @@ public class HUDController {
         }
     }
 
+    // MARK: - Prefix Mode
+
+    private func enterPrefixMode(children: [KeyChild]) {
+        var reachable: [Int: String] = [:]
+        for child in children {
+            reachable[child.cellIndex] = child.label
+        }
+        overlayView?.prefixReachableCells = reachable
+    }
+
+    private func exitPrefixMode() {
+        overlayView?.prefixReachableCells = nil
+    }
+
+    /// Shows the HUD directly in prefix mode (called from HotkeyManager when a prefix key fires on the fast path).
+    public func showHUDInPrefixMode(children: [KeyChild]) {
+        showHUD()
+        guard isHUDVisible else { return }
+        prefixState = PrefixState(prefixKeyCode: 0, children: children)
+        enterPrefixMode(children: children)
+        // Start prefix timeout
+        let timer = DispatchWorkItem { [weak self] in
+            self?.prefixState = nil
+            self?.prefixTimer = nil
+            self?.exitPrefixMode()
+            self?.dismissHUD()
+        }
+        prefixTimer = timer
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: timer)
+    }
+
     // MARK: - CGEvent Tap (key suppression)
 
     private func installEventTap(layout: GridLayout) {
@@ -311,13 +353,43 @@ public class HUDController {
             return nil
         }
 
-        let keyCodes = controller.activeKeyCodes
-        if let cellIndex = keyCodes.firstIndex(of: keyCode) {
-            let index = keyCodes.distance(from: keyCodes.startIndex, to: cellIndex)
-            DispatchQueue.main.async {
-                controller.handleCellSelected(index: index)
+        // Prefix state: check if this key resolves a pending prefix
+        if let prefix = controller.prefixState {
+            controller.prefixState = nil
+            controller.prefixTimer?.cancel()
+            controller.prefixTimer = nil
+            if let child = prefix.children.first(where: { $0.keyCode == keyCode }) {
+                DispatchQueue.main.async {
+                    controller.exitPrefixMode()
+                    controller.handleCellSelected(index: child.cellIndex)
+                }
+                return nil
             }
-            return nil
+            // Not a valid child — clear prefix mode and fall through to handle as new top-level key
+            DispatchQueue.main.async { controller.exitPrefixMode() }
+        }
+
+        // Top-level key lookup via KeyMap
+        if let keyMap = controller.activeKeyMap, let binding = keyMap.bindings[keyCode] {
+            switch binding {
+            case .direct(let cellIndex):
+                DispatchQueue.main.async {
+                    controller.handleCellSelected(index: cellIndex)
+                }
+                return nil
+            case .prefix(let children):
+                controller.prefixState = PrefixState(prefixKeyCode: keyCode, children: children)
+                DispatchQueue.main.async { controller.enterPrefixMode(children: children) }
+                // Start prefix timeout
+                let timer = DispatchWorkItem { [weak controller] in
+                    controller?.prefixState = nil
+                    controller?.prefixTimer = nil
+                    controller?.exitPrefixMode()
+                }
+                controller.prefixTimer = timer
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: timer)
+                return nil
+            }
         }
 
         return Unmanaged.passRetained(event)
