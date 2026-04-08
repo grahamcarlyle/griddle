@@ -14,7 +14,7 @@ jobs:
         run: ./build.sh
 
       - name: Zip app bundle
-        run: zip -r Griddle.zip .build/Griddle.app
+        run: zip -r Griddle.zip .build/Griddle.app install.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -33,5 +33,5 @@ jobs:
           body: |
             Automatic build from commit ${{ github.sha }}.
 
-            **Install:** Download `Griddle.zip`, unzip, and move `Griddle.app` to `/Applications`.
-            **Note:** On first open, right-click → Open (or run `xattr -cr Griddle.app`) to bypass Gatekeeper.
+            **Install:** Download `Griddle.zip`, unzip, and run `./install.sh` — this copies `Griddle.app` to `/Applications` and removes the quarantine flag.
+            You can also pass a custom path: `./install.sh path/to/Griddle.app`

@@ -5,7 +5,7 @@ public class HUDController {
     private var config: GriddleConfig
     private var panel: NSPanel?
     private var overlayView: HUDOverlayView?
-    private var isVisible = false
+    public private(set) var isHUDVisible = false
     private var modifiersTapped = false
     private var inactivityTimer: DispatchWorkItem?
     private var flagsMonitor: Any?
@@ -39,7 +39,7 @@ public class HUDController {
 
     public func update(config: GriddleConfig) {
         self.config = config
-        if isVisible {
+        if isHUDVisible {
             dismissHUD()
         }
     }
@@ -61,7 +61,7 @@ public class HUDController {
             modifiersTapped = true
         } else if modifiersTapped {
             modifiersTapped = false
-            if isVisible {
+            if isHUDVisible {
                 dismissHUD()
             } else {
                 showHUD()
@@ -76,7 +76,7 @@ public class HUDController {
     // MARK: - Show/Dismiss HUD
 
     public func showHUD() {
-        guard !isVisible else { return }
+        guard !isHUDVisible else { return }
         guard let screen = WindowMover.screenForFocusedWindow() ?? NSScreen.main else { return }
         let screenKey = GriddleConfig.screenKey(for: screen)
         guard let layout = config.layoutForScreen(key: screenKey) else { return }
@@ -108,7 +108,7 @@ public class HUDController {
 
         self.panel = panel
         self.overlayView = overlayView
-        self.isVisible = true
+        self.isHUDVisible = true
         self.activeKeyCodes = keyCodes
         self.selectionStage = .choosingAnchor
         self.cursorRevealed = false
@@ -127,7 +127,7 @@ public class HUDController {
         panel = nil
         overlayView = nil
         activeKeyCodes = []
-        isVisible = false
+        isHUDVisible = false
     }
 
     // MARK: - Inactivity Timer

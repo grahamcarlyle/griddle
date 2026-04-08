@@ -19,11 +19,14 @@ let hotkeyManager = HotkeyManager(config: configStore.config)
 let hudController = HUDController(config: configStore.config)
 hotkeyManager.hudController = hudController
 hotkeyManager.onLayoutCycle = {
-    configStore.cycleLayout()
+    if hudController.isHUDVisible {
+        configStore.cycleLayout()
+    }
     hudController.showHUD()
+    hudController.cancelShowHUD()  // Prevent modifier release from dismissing the HUD
 }
 
-// Re-register hotkeys and HUD whenever config changes
+// Register hotkeys and update HUD on config changes (including initial setup)
 var cancellable = configStore.$config.sink { newConfig in
     hotkeyManager.update(config: newConfig)
     hudController.update(config: newConfig)
@@ -47,8 +50,6 @@ while !checkAccessibilityPermission() {
     }
 }
 
-// Register initial hotkeys and start modifier watch for HUD
-hotkeyManager.register()
 hudController.startModifierWatch()
 
 // Set up status bar

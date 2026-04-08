@@ -56,13 +56,13 @@ public class HotkeyManager {
             hotKeyRefs.append(hotKeyRef)
         }
 
-        // Register modifier+Tab to cycle through layouts
-        let tabKeyCode: UInt32 = 48
+        // Register modifier+Space to cycle through layouts
+        let spaceKeyCode: UInt32 = 49
         let cycleID = nextID
         nextID += 1
         cycleHotKeyID = cycleID
         let cycleHKID = EventHotKeyID(signature: fourCharCode("GRDL"), id: cycleID)
-        RegisterEventHotKey(tabKeyCode, modifiers, cycleHKID, GetApplicationEventTarget(), 0, &cycleHotKeyRef)
+        RegisterEventHotKey(spaceKeyCode, modifiers, cycleHKID, GetApplicationEventTarget(), 0, &cycleHotKeyRef)
     }
 
     func unregisterAll() {
