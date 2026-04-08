@@ -7,7 +7,6 @@ public class HUDController {
     private var overlayView: HUDOverlayView?
     public private(set) var isHUDVisible = false
     private var modifiersTapped = false
-    private var inactivityTimer: DispatchWorkItem?
     private var flagsMonitor: Any?
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -20,7 +19,7 @@ public class HUDController {
         let children: [KeyChild]
     }
     private var prefixState: PrefixState?
-    private var prefixTimer: DispatchWorkItem?
+
 
     // Selection state
     private enum SelectionStage { case choosingAnchor, expanding }
@@ -33,7 +32,6 @@ public class HUDController {
     private var extentCol: Int = 0
     private var extentRow: Int = 0
 
-    private static let inactivityTimeout: TimeInterval = 1.0
     private static let escapeKeyCode: UInt16 = 53
     private static let returnKeyCode: UInt16 = 36
     private static let arrowUp: UInt16 = 126
@@ -127,10 +125,7 @@ public class HUDController {
     }
 
     private func dismissHUD() {
-        inactivityTimer?.cancel()
-        inactivityTimer = nil
-        prefixTimer?.cancel()
-        prefixTimer = nil
+
         prefixState = nil
         selectionStage = .choosingAnchor
         removeEventTap()
@@ -141,17 +136,6 @@ public class HUDController {
         isHUDVisible = false
     }
 
-    // MARK: - Inactivity Timer
-
-    private func resetInactivityTimer() {
-        inactivityTimer?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            self?.confirmSelection()
-        }
-        inactivityTimer = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.inactivityTimeout, execute: work)
-    }
-
     // MARK: - Selection Logic
 
     private func handleCellSelected(index: Int) {
@@ -160,19 +144,14 @@ public class HUDController {
 
         switch selectionStage {
         case .choosingAnchor:
-            // Letter/number key selects anchor and moves to expanding stage
             anchorCol = cell.col
             anchorRow = cell.row
             extentCol = cell.col
             extentRow = cell.row
             selectionStage = .expanding
             updateHighlight()
-            resetInactivityTimer()
 
         case .expanding:
-            // Second letter/number key — compute bounding box and move immediately
-            inactivityTimer?.cancel()
-            inactivityTimer = nil
             let anchor = GridCell(col: anchorCol, row: anchorRow, colSpan: 1, rowSpan: 1)
             let target = WindowMover.boundingCell(from: anchor, to: cell)
             WindowMover.moveFocusedWindow(to: target, in: layout)
@@ -200,7 +179,6 @@ public class HUDController {
                 }
             }
             updateHighlight()
-            resetInactivityTimer()
 
         case .expanding:
             switch keyCode {
@@ -211,7 +189,6 @@ public class HUDController {
             default: break
             }
             updateHighlight()
-            resetInactivityTimer()
         }
     }
 
@@ -219,19 +196,14 @@ public class HUDController {
         switch selectionStage {
         case .choosingAnchor:
             // Confirm anchor, move to expanding
-            inactivityTimer?.cancel()
-            inactivityTimer = nil
             anchorCol = cursorCol
             anchorRow = cursorRow
             extentCol = cursorCol
             extentRow = cursorRow
             selectionStage = .expanding
             updateHighlight()
-            resetInactivityTimer()
 
         case .expanding:
-            inactivityTimer?.cancel()
-            inactivityTimer = nil
             confirmSelection()
         }
     }
@@ -239,19 +211,11 @@ public class HUDController {
     private func confirmSelection() {
         guard let layout = activeLayout else { return }
 
-        switch selectionStage {
-        case .choosingAnchor:
-            // Timeout during anchor selection — move to cursor cell
-            let cell = GridCell(col: cursorCol, row: cursorRow, colSpan: 1, rowSpan: 1)
-            WindowMover.moveFocusedWindow(to: cell, in: layout)
-
-        case .expanding:
-            // Confirm the current bounding box
-            let anchor = GridCell(col: anchorCol, row: anchorRow, colSpan: 1, rowSpan: 1)
-            let extent = GridCell(col: extentCol, row: extentRow, colSpan: 1, rowSpan: 1)
-            let target = WindowMover.boundingCell(from: anchor, to: extent)
-            WindowMover.moveFocusedWindow(to: target, in: layout)
-        }
+        // Confirm the current bounding box (only called from expanding stage)
+        let anchor = GridCell(col: anchorCol, row: anchorRow, colSpan: 1, rowSpan: 1)
+        let extent = GridCell(col: extentCol, row: extentRow, colSpan: 1, rowSpan: 1)
+        let target = WindowMover.boundingCell(from: anchor, to: extent)
+        WindowMover.moveFocusedWindow(to: target, in: layout)
         dismissHUD()
     }
 
@@ -290,15 +254,6 @@ public class HUDController {
         guard isHUDVisible else { return }
         prefixState = PrefixState(prefixKeyCode: 0, children: children)
         enterPrefixMode(children: children)
-        // Start prefix timeout
-        let timer = DispatchWorkItem { [weak self] in
-            self?.prefixState = nil
-            self?.prefixTimer = nil
-            self?.exitPrefixMode()
-            self?.dismissHUD()
-        }
-        prefixTimer = timer
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: timer)
     }
 
     // MARK: - CGEvent Tap (key suppression)
@@ -356,8 +311,6 @@ public class HUDController {
         // Prefix state: check if this key resolves a pending prefix
         if let prefix = controller.prefixState {
             controller.prefixState = nil
-            controller.prefixTimer?.cancel()
-            controller.prefixTimer = nil
             if let child = prefix.children.first(where: { $0.keyCode == keyCode }) {
                 DispatchQueue.main.async {
                     controller.exitPrefixMode()
@@ -380,14 +333,6 @@ public class HUDController {
             case .prefix(let children):
                 controller.prefixState = PrefixState(prefixKeyCode: keyCode, children: children)
                 DispatchQueue.main.async { controller.enterPrefixMode(children: children) }
-                // Start prefix timeout
-                let timer = DispatchWorkItem { [weak controller] in
-                    controller?.prefixState = nil
-                    controller?.prefixTimer = nil
-                    controller?.exitPrefixMode()
-                }
-                controller.prefixTimer = timer
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: timer)
                 return nil
             }
         }

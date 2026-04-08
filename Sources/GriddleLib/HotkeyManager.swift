@@ -1,6 +1,7 @@
 import Cocoa
 import Carbon
 
+
 /// Maps keyboard shortcuts to grid cells and registers global hotkeys.
 public class HotkeyManager {
     private var config: GriddleConfig
@@ -19,7 +20,7 @@ public class HotkeyManager {
         let children: [KeyChild]
     }
     private var prefixState: PrefixState?
-    private var prefixTimer: DispatchWorkItem?
+
 
     public init(config: GriddleConfig) {
         self.config = config
@@ -80,8 +81,6 @@ public class HotkeyManager {
         hotKeyRefs.removeAll()
         hotKeyIDToKeyCode.removeAll()
         keyMap = nil
-        prefixTimer?.cancel()
-        prefixTimer = nil
         prefixState = nil
         if let ref = cycleHotKeyRef { UnregisterEventHotKey(ref) }
         cycleHotKeyRef = nil
@@ -110,8 +109,7 @@ public class HotkeyManager {
         // Check if we're resolving a pending prefix
         if let prefix = prefixState {
             prefixState = nil
-            prefixTimer?.cancel()
-            prefixTimer = nil
+
             if let child = prefix.children.first(where: { $0.keyCode == keyCode }) {
                 return moveWindowToCell(index: child.cellIndex)
             }
@@ -130,14 +128,6 @@ public class HotkeyManager {
             prefixState = PrefixState(children: children)
             hudController?.cancelShowHUD()
             hudController?.showHUDInPrefixMode(children: children)
-
-            // Start prefix timeout
-            let timer = DispatchWorkItem { [weak self] in
-                self?.prefixState = nil
-                self?.prefixTimer = nil
-            }
-            prefixTimer = timer
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: timer)
             return noErr
         }
     }
