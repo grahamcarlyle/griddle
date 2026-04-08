@@ -54,7 +54,7 @@ By default, keys are mapped spatially to match the grid layout:
 | A   | Bottom-left    |
 | S   | Bottom-right   |
 
-For larger grids the mapping extends across the keyboard rows (Q/W/E/R/T/Y, A/S/D/F/G/H, Z/X/C/V/B/N). You can switch to number keys (1–9) in the settings.
+For larger grids the mapping extends across the keyboard rows (Q/W/E/R/T/Y, A/S/D/F/G/H, Z/X/C/V/B/N). Grids with more than 3 rows use prefix keys — e.g. in a 4-row grid, press Z then a letter to reach rows 3–4 (the HUD shows the key sequences). You can switch to number keys (1–9) in the settings; grids with more than 9 cells use key 9 as a prefix.
 
 ## Alternatives
 

@@ -56,6 +56,13 @@ public struct WindowMover {
         return (focusedWindow as! AXUIElement)
     }
 
+    /// Returns the application AXUIElement that owns the given window.
+    private static func applicationElement(for window: AXUIElement) -> AXUIElement? {
+        var pid: pid_t = 0
+        guard AXUIElementGetPid(window, &pid) == .success else { return nil }
+        return AXUIElementCreateApplication(pid)
+    }
+
     private static func screenFrame(for window: AXUIElement) -> CGRect? {
         // Get window position in screen coordinates
         var posValue: CFTypeRef?
@@ -89,11 +96,34 @@ public struct WindowMover {
         var pos = frame.origin
         var size = frame.size
 
+        // Some apps (JetBrains IDEs, Electron apps) enable AXEnhancedUserInterface
+        // which causes AX attribute sets to behave erratically. Temporarily disable it.
+        let appElement = applicationElement(for: window)
+        var enhancedUI = false
+        if let appElement = appElement {
+            var value: CFTypeRef?
+            if AXUIElementCopyAttributeValue(appElement, "AXEnhancedUserInterface" as CFString, &value) == .success,
+               let boolValue = value as? Bool, boolValue {
+                enhancedUI = true
+                AXUIElementSetAttributeValue(appElement, "AXEnhancedUserInterface" as CFString, false as CFBoolean)
+            }
+        }
+
+        // Size, position, size: the standard pattern used by Rectangle, Loop, and Yabai.
+        // First size handles pre-move screen constraints, second size handles post-move
+        // constraints when the position change moves the window to a different screen.
+        if let sizeValue = AXValueCreate(.cgSize, &size) {
+            AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
+        }
         if let posValue = AXValueCreate(.cgPoint, &pos) {
             AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, posValue)
         }
         if let sizeValue = AXValueCreate(.cgSize, &size) {
             AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
+        }
+
+        if enhancedUI, let appElement = appElement {
+            AXUIElementSetAttributeValue(appElement, "AXEnhancedUserInterface" as CFString, true as CFBoolean)
         }
     }
 }

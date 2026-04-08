@@ -103,6 +103,10 @@ public class HotkeyManager {
             return noErr
         }
 
+        // When the HUD is visible, its CGEvent tap handles all key input
+        // (with bounding box selection support). Skip here to avoid double-moves.
+        if hudController?.isHUDVisible == true { return noErr }
+
         guard let keyCode = hotKeyIDToKeyCode[hotKeyID.id],
               let map = keyMap else { return noErr }
 
