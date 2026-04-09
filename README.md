@@ -15,6 +15,14 @@
 
 Griddle is a lightweight menu-bar utility inspired by [GNOME Tactile](https://extensions.gnome.org/extension/4548/tactile/). It lets you snap the focused window into grid positions using global keyboard shortcuts — no mouse required. A translucent HUD overlay shows the grid so you always know where your windows will land.
 
+## Getting started
+
+1. **[Download the latest release](https://github.com/grahamcarlyle/griddle/releases/latest)**
+2. Unzip and run `./install.sh` to install to `/Applications` (or pass a custom path: `./install.sh path/to/Griddle.app`)
+3. Launch Griddle and grant Accessibility permission when prompted, in **System Settings → Privacy & Security → Accessibility → Griddle**, then relaunch
+
+Requires macOS 13 (Ventura) or later.
+
 ## Highlights
 
 - **Instant tiling** — modifier + letter key moves the focused window to a grid cell
@@ -79,29 +87,15 @@ macOS 15 Sequoia adds edge and corner snapping via Option-drag, which covers the
 
 **Prefer Amethyst or Yabai if** you want windows to tile themselves automatically rather than placing them manually.
 
-## Requirements
+## Building from source
 
-- macOS 13 (Ventura) or later
-- Swift toolchain (managed via [mise](https://mise.jdx.dev/))
-- Accessibility permission (prompted on first launch)
-
-## Build & Run
+Requires the Swift toolchain (managed via [mise](https://mise.jdx.dev/)).
 
 ```bash
 ./build.sh                                       # Build + package as .app bundle (ad-hoc signed)
 ./install.sh                                     # Install to /Applications and remove quarantine
 open /Applications/Griddle.app                   # Run
 ```
-
-For downloaded releases, unzip and run `./install.sh` (or pass a custom path: `./install.sh path/to/Griddle.app`).
-
-## First launch
-
-On first launch, Griddle will prompt for Accessibility permission. Grant it in:
-
-**System Settings → Privacy & Security → Accessibility → Griddle**
-
-Then relaunch the app.
 
 ## Configuration
 
