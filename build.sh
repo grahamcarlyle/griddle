@@ -11,7 +11,17 @@ mkdir -p "$APP_DIR/MacOS" "$APP_DIR/Resources"
 cp .build/release/Griddle "$APP_DIR/MacOS/Griddle"
 cp Griddle.icns "$APP_DIR/Resources/Griddle.icns"
 
-cat > "$APP_DIR/Info.plist" << 'EOF'
+BUNDLE_NAME="Griddle"
+VERSION_KEYS=""
+if [ -n "${GRIDDLE_VERSION:-}" ]; then
+    BUNDLE_NAME="Griddle (build $GRIDDLE_VERSION)"
+    VERSION_KEYS="    <key>CFBundleShortVersionString</key>
+    <string>$GRIDDLE_VERSION</string>
+    <key>CFBundleVersion</key>
+    <string>$GRIDDLE_VERSION</string>"
+fi
+
+cat > "$APP_DIR/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -19,7 +29,7 @@ cat > "$APP_DIR/Info.plist" << 'EOF'
     <key>CFBundleIdentifier</key>
     <string>com.grahamcarlyle.griddle</string>
     <key>CFBundleName</key>
-    <string>Griddle</string>
+    <string>$BUNDLE_NAME</string>
     <key>CFBundleExecutable</key>
     <string>Griddle</string>
     <key>CFBundlePackageType</key>
@@ -28,6 +38,7 @@ cat > "$APP_DIR/Info.plist" << 'EOF'
     <string>Griddle</string>
     <key>LSUIElement</key>
     <true/>
+$VERSION_KEYS
 </dict>
 </plist>
 EOF

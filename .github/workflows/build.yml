@@ -12,6 +12,8 @@ jobs:
 
       - name: Build app bundle
         run: ./build.sh
+        env:
+          GRIDDLE_VERSION: ${{ github.run_number }}
 
       - name: Zip app bundle
         run: zip -r Griddle.zip .build/Griddle.app install.sh
@@ -31,7 +33,9 @@ jobs:
           prerelease: true
           files: Griddle.zip
           body: |
-            Automatic build from commit ${{ github.sha }}.
+            Build ${{ github.run_number }} from commit ${{ github.sha }}.
 
             **Install:** Download `Griddle.zip`, unzip, and run `./install.sh` — this copies `Griddle.app` to `/Applications` and removes the quarantine flag.
             You can also pass a custom path: `./install.sh path/to/Griddle.app`
+
+            After granting Accessibility permission, the app will appear as "Griddle (build ${{ github.run_number }})" in System Settings. You can remove old build entries from the Accessibility list.
