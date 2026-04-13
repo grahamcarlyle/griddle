@@ -92,10 +92,21 @@ macOS 15 Sequoia adds edge and corner snapping via Option-drag, which covers the
 Requires the Swift toolchain (managed via [mise](https://mise.jdx.dev/)).
 
 ```bash
-./build.sh                                       # Build + package as .app bundle (ad-hoc signed)
+./build.sh                                       # Build + package as .app bundle
 ./install.sh                                     # Install to /Applications and remove quarantine
 open /Applications/Griddle.app                   # Run
 ```
+
+**Optional: stable signing for local development**
+
+By default `build.sh` signs the bundle ad-hoc, which means macOS treats each rebuild as a new app and forces you to re-grant Accessibility permission. To keep the grant across rebuilds, create a self-signed Code Signing certificate once:
+
+1. Open **Keychain Access**
+2. Menu: **Keychain Access → Certificate Assistant → Create a Certificate…**
+3. Name: `Griddle Dev`, Identity Type: **Self Signed Root**, Certificate Type: **Code Signing**
+4. Click **Create**, then **Done**
+
+Subsequent `./build.sh` runs will detect the identity and sign with it. Override the name via `GRIDDLE_SIGN_IDENTITY=<name> ./build.sh` if you prefer a different label.
 
 ## Configuration
 
