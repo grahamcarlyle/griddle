@@ -83,6 +83,13 @@ public class HUDController {
 
     public func showHUD() {
         guard !isHUDVisible else { return }
+
+        // In native full-screen, tiling can't work — show a brief message instead
+        if WindowMover.isFocusedWindowFullScreen() {
+            showDisabledHUD(message: "Exit full screen to tile")
+            return
+        }
+
         guard let screen = WindowMover.screenForFocusedWindow() ?? NSScreen.main else { return }
         let screenKey = GriddleConfig.screenKey(for: screen)
         guard let layout = config.layoutForScreen(key: screenKey) else { return }
@@ -122,6 +129,39 @@ public class HUDController {
         self.cursorRow = 0
 
         installEventTap(layout: layout)
+    }
+
+    private func showDisabledHUD(message: String) {
+        guard let screen = NSScreen.main else { return }
+        let screenFrame = screen.frame
+
+        let panel = NSPanel(
+            contentRect: screenFrame,
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.level = .floating
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = false
+        panel.ignoresMouseEvents = true
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+
+        let overlayView = HUDOverlayView(frame: NSRect(origin: .zero, size: screenFrame.size))
+        overlayView.theme = config.hudTheme
+        overlayView.disabledMessage = message
+        panel.contentView = overlayView
+
+        panel.orderFrontRegardless()
+
+        self.panel = panel
+        self.overlayView = overlayView
+        self.isHUDVisible = true
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            self?.dismissHUD()
+        }
     }
 
     private func dismissHUD() {

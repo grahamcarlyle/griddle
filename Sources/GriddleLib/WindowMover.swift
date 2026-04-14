@@ -46,6 +46,17 @@ public struct WindowMover {
 
     // MARK: - Private helpers
 
+    /// Returns whether the currently focused window is in native macOS full-screen mode.
+    public static func isFocusedWindowFullScreen() -> Bool {
+        guard let window = focusedWindow() else { return false }
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(window, "AXFullScreen" as CFString, &value) == .success,
+              let isFullScreen = value as? Bool else {
+            return false
+        }
+        return isFullScreen
+    }
+
     private static func focusedWindow() -> AXUIElement? {
         guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
         let appElement = AXUIElementCreateApplication(app.processIdentifier)

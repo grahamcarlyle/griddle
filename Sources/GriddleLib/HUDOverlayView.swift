@@ -38,16 +38,33 @@ class HUDOverlayView: NSView {
         }
     }
 
+    /// When set, shows a centered message instead of the grid.
+    var disabledMessage: String? { didSet { needsDisplay = true } }
+
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
-        guard let layout = layout, let _ = NSGraphicsContext.current?.cgContext else { return }
-
         let bounds = self.bounds
         let colors = themeColors()
 
         // Semi-transparent dark background
         NSColor.black.withAlphaComponent(colors.bgAlpha).setFill()
         NSBezierPath.fill(bounds)
+
+        if let message = disabledMessage {
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 24, weight: .semibold),
+                .foregroundColor: NSColor.white.withAlphaComponent(0.8)
+            ]
+            let size = message.size(withAttributes: attrs)
+            let point = NSPoint(
+                x: bounds.midX - size.width / 2,
+                y: bounds.midY - size.height / 2
+            )
+            message.draw(at: point, withAttributes: attrs)
+            return
+        }
+
+        guard let layout = layout, let _ = NSGraphicsContext.current?.cgContext else { return }
 
         let cellWidth = bounds.width / CGFloat(layout.columns)
         let cellHeight = bounds.height / CGFloat(layout.rows)
