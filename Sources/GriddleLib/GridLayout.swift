@@ -101,6 +101,9 @@ public struct GriddleConfig: Codable {
     public var cycleKey: CycleKey
     /// Per-screen layout overrides. Key is screen identifier (name + position), value is layout ID.
     public var screenLayouts: [String: String]
+    /// Per-screen layout pool overrides. Key is screen identifier, value is array of layout IDs.
+    /// When set for a screen, only these layouts are available for it. When absent, all layouts are available.
+    public var screenLayoutPools: [String: [String]]
 
     public struct ModifierConfig: Codable {
         /// Key modifiers used for grid bindings: "ctrl", "alt", "cmd", "shift"
@@ -111,7 +114,7 @@ public struct GriddleConfig: Codable {
         }
     }
 
-    public init(activeLayoutID: String, layouts: [GridLayout], modifier: ModifierConfig, keyStyle: KeyStyle = .spatial, hudTheme: HUDTheme = .system, cycleKey: CycleKey = .space, screenLayouts: [String: String] = [:]) {
+    public init(activeLayoutID: String, layouts: [GridLayout], modifier: ModifierConfig, keyStyle: KeyStyle = .spatial, hudTheme: HUDTheme = .system, cycleKey: CycleKey = .space, screenLayouts: [String: String] = [:], screenLayoutPools: [String: [String]] = [:]) {
         self.activeLayoutID = activeLayoutID
         self.layouts = layouts
         self.modifier = modifier
@@ -119,6 +122,7 @@ public struct GriddleConfig: Codable {
         self.hudTheme = hudTheme
         self.cycleKey = cycleKey
         self.screenLayouts = screenLayouts
+        self.screenLayoutPools = screenLayoutPools
     }
 
     // Custom decoding for backward compatibility
@@ -131,6 +135,16 @@ public struct GriddleConfig: Codable {
         hudTheme = try container.decodeIfPresent(HUDTheme.self, forKey: .hudTheme) ?? .system
         cycleKey = try container.decodeIfPresent(CycleKey.self, forKey: .cycleKey) ?? .space
         screenLayouts = try container.decodeIfPresent([String: String].self, forKey: .screenLayouts) ?? [:]
+        screenLayoutPools = try container.decodeIfPresent([String: [String]].self, forKey: .screenLayoutPools) ?? [:]
+    }
+
+    /// Returns the layouts available for a given screen.
+    /// If a custom pool is set for the screen, only those layouts are returned; otherwise all layouts.
+    public func layoutsForScreen(key: String) -> [GridLayout] {
+        guard let poolIDs = screenLayoutPools[key], !poolIDs.isEmpty else {
+            return layouts
+        }
+        return layouts.filter { poolIDs.contains($0.id) }
     }
 
     /// Resolves the layout for a given screen, falling back to activeLayoutID.

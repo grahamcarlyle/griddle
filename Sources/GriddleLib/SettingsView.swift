@@ -217,28 +217,86 @@ struct SettingsView: View {
         if screens.count > 1 {
             ForEach(screens, id: \.self) { screen in
                 let key = GriddleConfig.screenKey(for: screen)
-                LabeledContent(screen.localizedName) {
-                    Picker("", selection: Binding(
-                        get: {
-                            configStore.config.screenLayouts[key] ?? ""
-                        },
-                        set: { id in
-                            if id.isEmpty {
+                let screenLayouts = configStore.config.layoutsForScreen(key: key)
+                let hasCustomPool = configStore.config.screenLayoutPools[key] != nil
+
+                DisclosureGroup {
+                    let useAll = Binding(
+                        get: { !hasCustomPool },
+                        set: { isOn in
+                            if isOn {
+                                configStore.clearScreenLayoutPool(screen: screen)
                                 configStore.removeScreenLayout(screen: screen)
                             } else {
-                                configStore.setScreenLayout(screen: screen, layoutID: id)
+                                // Initialize custom pool with all layouts
+                                configStore.setScreenLayoutPool(screen: screen, layoutIDs: configStore.config.layouts.map(\.id))
                             }
                             hotkeyManager.update(config: configStore.config)
                         }
-                    )) {
-                        Text("Default").tag("")
+                    )
+                    Toggle("Use all layouts", isOn: useAll)
+
+                    if hasCustomPool {
                         ForEach(configStore.config.layouts) { layout in
-                            Text(layout.name).tag(layout.id)
+                            Toggle(layout.name, isOn: Binding(
+                                get: {
+                                    configStore.config.screenLayoutPools[key]?.contains(layout.id) ?? true
+                                },
+                                set: { isOn in
+                                    var pool = configStore.config.screenLayoutPools[key] ?? configStore.config.layouts.map(\.id)
+                                    if isOn {
+                                        if !pool.contains(layout.id) { pool.append(layout.id) }
+                                    } else {
+                                        pool.removeAll { $0 == layout.id }
+                                    }
+                                    // If all selected, revert to shared pool
+                                    if Set(pool) == Set(configStore.config.layouts.map(\.id)) {
+                                        configStore.clearScreenLayoutPool(screen: screen)
+                                        configStore.removeScreenLayout(screen: screen)
+                                    } else if pool.isEmpty {
+                                        // Don't allow empty pool — keep at least one
+                                        return
+                                    } else {
+                                        configStore.setScreenLayoutPool(screen: screen, layoutIDs: pool)
+                                        // If current screen layout is no longer in pool, switch to first
+                                        if let current = configStore.config.screenLayouts[key],
+                                           !pool.contains(current) {
+                                            configStore.setScreenLayout(screen: screen, layoutID: pool.first!)
+                                        }
+                                    }
+                                    hotkeyManager.update(config: configStore.config)
+                                }
+                            ))
                         }
                     }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
+                } label: {
+                    HStack {
+                        Text(screen.localizedName)
+                        Spacer()
+                        Picker("", selection: Binding(
+                            get: {
+                                configStore.config.screenLayouts[key] ?? ""
+                            },
+                            set: { id in
+                                if id.isEmpty {
+                                    configStore.removeScreenLayout(screen: screen)
+                                } else {
+                                    configStore.setScreenLayout(screen: screen, layoutID: id)
+                                }
+                                hotkeyManager.update(config: configStore.config)
+                            }
+                        )) {
+                            Text("Default").tag("")
+                            ForEach(screenLayouts) { layout in
+                                Text(layout.name).tag(layout.id)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .frame(width: 80)
+                    }
                 }
+                .font(.caption)
             }
         }
     }

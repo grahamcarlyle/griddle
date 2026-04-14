@@ -19,8 +19,9 @@ let hotkeyManager = HotkeyManager(config: configStore.config)
 let hudController = HUDController(config: configStore.config)
 hotkeyManager.hudController = hudController
 hotkeyManager.onLayoutCycle = {
+    let screen = WindowMover.screenForFocusedWindow()
     if hudController.isHUDVisible {
-        configStore.cycleLayout()
+        configStore.cycleLayout(on: screen)
     }
     hudController.showHUD()
     hudController.cancelShowHUD()  // Prevent modifier release from dismissing the HUD

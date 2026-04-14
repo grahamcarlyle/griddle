@@ -31,6 +31,15 @@ public class ConfigStore: ObservableObject {
         }
         // Remove any screen mappings that reference this layout
         config.screenLayouts = config.screenLayouts.filter { $0.value != id }
+        // Remove from per-screen layout pools
+        for (key, pool) in config.screenLayoutPools {
+            let filtered = pool.filter { $0 != id }
+            if filtered.isEmpty {
+                config.screenLayoutPools.removeValue(forKey: key)
+            } else {
+                config.screenLayoutPools[key] = filtered
+            }
+        }
     }
 
     /// Resolves the layout for a specific screen, falling back to the global default.
@@ -49,9 +58,44 @@ public class ConfigStore: ObservableObject {
         config.screenLayouts.removeValue(forKey: key)
     }
 
-    public func cycleLayout() {
-        guard config.layouts.count > 1 else { return }
-        let currentIndex = config.layouts.firstIndex(where: { $0.id == config.activeLayoutID }) ?? 0
-        config.activeLayoutID = config.layouts[(currentIndex + 1) % config.layouts.count].id
+    /// Returns the layouts available for a specific screen (pool-filtered or all).
+    public func layoutsForScreen(_ screen: NSScreen) -> [GridLayout] {
+        let key = GriddleConfig.screenKey(for: screen)
+        return config.layoutsForScreen(key: key)
+    }
+
+    public func setScreenLayoutPool(screen: NSScreen, layoutIDs: [String]) {
+        let key = GriddleConfig.screenKey(for: screen)
+        config.screenLayoutPools[key] = layoutIDs
+    }
+
+    public func clearScreenLayoutPool(screen: NSScreen) {
+        let key = GriddleConfig.screenKey(for: screen)
+        config.screenLayoutPools.removeValue(forKey: key)
+    }
+
+    public func cycleLayout(on screen: NSScreen? = nil) {
+        let pool: [GridLayout]
+        let currentID: String
+
+        if let screen = screen {
+            let key = GriddleConfig.screenKey(for: screen)
+            pool = config.layoutsForScreen(key: key)
+            currentID = config.screenLayouts[key] ?? config.activeLayoutID
+        } else {
+            pool = config.layouts
+            currentID = config.activeLayoutID
+        }
+
+        guard pool.count > 1 else { return }
+        let currentIndex = pool.firstIndex(where: { $0.id == currentID }) ?? 0
+        let nextID = pool[(currentIndex + 1) % pool.count].id
+
+        if let screen = screen {
+            let key = GriddleConfig.screenKey(for: screen)
+            config.screenLayouts[key] = nextID
+        } else {
+            config.activeLayoutID = nextID
+        }
     }
 }
