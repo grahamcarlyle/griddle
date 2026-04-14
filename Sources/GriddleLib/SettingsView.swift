@@ -36,32 +36,64 @@ struct SettingsView: View {
 
                         screenLayoutRows
 
-                        DisclosureGroup("Add / Remove") {
+                        DisclosureGroup("Manage Layouts") {
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    ForEach(configStore.config.layouts) { layout in
+                                        HStack(spacing: 6) {
+                                            if layout.id == configStore.config.activeLayoutID {
+                                                Image(systemName: "checkmark")
+                                                    .foregroundColor(.accentColor)
+                                                    .frame(width: 12)
+                                            } else {
+                                                Spacer().frame(width: 12)
+                                            }
+
+                                            Text(layout.name)
+
+                                            let dims = "\(layout.columns)×\(layout.rows)"
+                                            if layout.name != dims {
+                                                Text(dims)
+                                                    .foregroundColor(.secondary)
+                                            }
+
+                                            Spacer()
+
+                                            if configStore.config.layouts.count > 1 {
+                                                Button(role: .destructive) {
+                                                    configStore.removeLayout(id: layout.id)
+                                                    hotkeyManager.update(config: configStore.config)
+                                                } label: {
+                                                    Image(systemName: "minus.circle")
+                                                }
+                                                .buttonStyle(.plain)
+                                                .foregroundColor(.red.opacity(0.7))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            .frame(maxHeight: 100)
+
+                            Divider()
+
                             HStack(spacing: 8) {
                                 Stepper("Cols: \(newCols)", value: $newCols, in: 1...6)
                                 Stepper("Rows: \(newRows)", value: $newRows, in: 1...4)
                             }
-                            .font(.caption)
 
-                            HStack {
-                                Button("Add \(newCols)×\(newRows)") {
-                                    let id = "\(newCols)x\(newRows)_\(Int(Date().timeIntervalSince1970))"
-                                    let layout = GridLayout.uniform(id: id, name: "\(newCols)×\(newRows)", columns: newCols, rows: newRows)
-                                    configStore.addLayout(layout)
-                                    configStore.setActiveLayout(id: id)
-                                    hotkeyManager.update(config: configStore.config)
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .controlSize(.small)
+                            let alreadyExists = configStore.config.layouts.contains { $0.columns == newCols && $0.rows == newRows }
 
-                                if configStore.config.layouts.count > 1 {
-                                    Button("Remove", role: .destructive) {
-                                        configStore.removeLayout(id: configStore.config.activeLayoutID)
-                                        hotkeyManager.update(config: configStore.config)
-                                    }
-                                    .controlSize(.small)
-                                }
+                            Button("Add \(newCols)×\(newRows)") {
+                                let id = "\(newCols)x\(newRows)_\(Int(Date().timeIntervalSince1970))"
+                                let layout = GridLayout.uniform(id: id, name: "\(newCols)×\(newRows)", columns: newCols, rows: newRows)
+                                configStore.addLayout(layout)
+                                configStore.setActiveLayout(id: id)
+                                hotkeyManager.update(config: configStore.config)
                             }
+                            .disabled(alreadyExists)
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
                         }
                         .font(.caption)
                     }
