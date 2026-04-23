@@ -10,14 +10,14 @@ public struct WindowMover {
         guard let window = focusedWindow() else { return }
         guard let screenFrame = screenFrame(for: window) else { return }
 
-        let cellWidth = screenFrame.width / CGFloat(layout.columns)
-        let cellHeight = screenFrame.height / CGFloat(layout.rows)
+        let colOffsets = layout.columnOffsets()
+        let rowOffsets = layout.rowOffsets()
 
         let targetFrame = CGRect(
-            x: screenFrame.origin.x + CGFloat(cell.col) * cellWidth,
-            y: screenFrame.origin.y + CGFloat(cell.row) * cellHeight,
-            width: cellWidth * CGFloat(cell.colSpan),
-            height: cellHeight * CGFloat(cell.rowSpan)
+            x: screenFrame.origin.x + colOffsets[cell.col] * screenFrame.width,
+            y: screenFrame.origin.y + rowOffsets[cell.row] * screenFrame.height,
+            width: (colOffsets[cell.col + cell.colSpan] - colOffsets[cell.col]) * screenFrame.width,
+            height: (rowOffsets[cell.row + cell.rowSpan] - rowOffsets[cell.row]) * screenFrame.height
         )
 
         setFrame(targetFrame, for: window)

@@ -32,12 +32,18 @@ public class HUDController {
     private var extentCol: Int = 0
     private var extentRow: Int = 0
 
+    // Weight editing state
+    private var editedLayout: GridLayout?
+    private var weightsDirty: Bool = false
+    public var onLayoutEdited: ((GridLayout) -> Void)?
+
     private static let escapeKeyCode: UInt16 = 53
     private static let returnKeyCode: UInt16 = 36
     private static let arrowUp: UInt16 = 126
     private static let arrowDown: UInt16 = 125
     private static let arrowLeft: UInt16 = 123
     private static let arrowRight: UInt16 = 124
+    private static let zeroKeyCode: UInt16 = 29
 
     public init(config: GriddleConfig) {
         self.config = config
@@ -127,6 +133,8 @@ public class HUDController {
         self.cursorRevealed = false
         self.cursorCol = 0
         self.cursorRow = 0
+        self.editedLayout = layout
+        self.weightsDirty = false
 
         installEventTap(layout: layout)
     }
@@ -165,9 +173,10 @@ public class HUDController {
     }
 
     private func dismissHUD() {
-
         prefixState = nil
         selectionStage = .choosingAnchor
+        editedLayout = nil
+        weightsDirty = false
         removeEventTap()
         panel?.orderOut(nil)
         panel = nil
@@ -194,7 +203,8 @@ public class HUDController {
         case .expanding:
             let anchor = GridCell(col: anchorCol, row: anchorRow, colSpan: 1, rowSpan: 1)
             let target = WindowMover.boundingCell(from: anchor, to: cell)
-            WindowMover.moveFocusedWindow(to: target, in: layout)
+            commitWeightsIfNeeded()
+            WindowMover.moveFocusedWindow(to: target, in: editedLayout ?? layout)
             dismissHUD()
         }
     }
@@ -232,6 +242,61 @@ public class HUDController {
         }
     }
 
+    private func handleShiftArrowKey(keyCode: UInt16) {
+        guard selectionStage == .expanding, var layout = editedLayout else { return }
+
+        let minCol = min(anchorCol, extentCol)
+        let maxCol = max(anchorCol, extentCol)
+        let minRow = min(anchorRow, extentRow)
+        let maxRow = max(anchorRow, extentRow)
+
+        let step = 0.1
+
+        switch keyCode {
+        case Self.arrowRight, Self.arrowLeft:
+            if layout.columnWeights == nil {
+                layout.columnWeights = Array(repeating: 1.0, count: layout.columns)
+            }
+            let delta = keyCode == Self.arrowRight ? step : -step
+            for c in minCol...maxCol {
+                layout.columnWeights![c] = max(0.1, layout.columnWeights![c] + delta)
+            }
+        case Self.arrowUp, Self.arrowDown:
+            if layout.rowWeights == nil {
+                layout.rowWeights = Array(repeating: 1.0, count: layout.rows)
+            }
+            // Shift+Up grows (more height), Shift+Down shrinks
+            let delta = keyCode == Self.arrowUp ? step : -step
+            for r in minRow...maxRow {
+                layout.rowWeights![r] = max(0.1, layout.rowWeights![r] + delta)
+            }
+        default:
+            break
+        }
+
+        editedLayout = layout
+        weightsDirty = true
+        overlayView?.layout = layout
+        overlayView?.showWeightStatus = true
+        overlayView?.needsDisplay = true
+    }
+
+    private func handleResetWeights() {
+        guard selectionStage == .expanding, var layout = editedLayout else { return }
+        layout.columnWeights = nil
+        layout.rowWeights = nil
+        editedLayout = layout
+        weightsDirty = true
+        overlayView?.layout = layout
+        overlayView?.showWeightStatus = true
+        overlayView?.needsDisplay = true
+    }
+
+    private func commitWeightsIfNeeded() {
+        guard weightsDirty, let layout = editedLayout else { return }
+        onLayoutEdited?(layout)
+    }
+
     private func handleReturn() {
         switch selectionStage {
         case .choosingAnchor:
@@ -251,11 +316,11 @@ public class HUDController {
     private func confirmSelection() {
         guard let layout = activeLayout else { return }
 
-        // Confirm the current bounding box (only called from expanding stage)
         let anchor = GridCell(col: anchorCol, row: anchorRow, colSpan: 1, rowSpan: 1)
         let extent = GridCell(col: extentCol, row: extentRow, colSpan: 1, rowSpan: 1)
         let target = WindowMover.boundingCell(from: anchor, to: extent)
-        WindowMover.moveFocusedWindow(to: target, in: layout)
+        commitWeightsIfNeeded()
+        WindowMover.moveFocusedWindow(to: target, in: editedLayout ?? layout)
         dismissHUD()
     }
 
@@ -344,8 +409,22 @@ public class HUDController {
         }
 
         if keyCode == arrowUp || keyCode == arrowDown || keyCode == arrowLeft || keyCode == arrowRight {
-            DispatchQueue.main.async { controller.handleArrowKey(keyCode: keyCode) }
+            let flags = CGEventFlags(rawValue: event.flags.rawValue & CGEventFlags.maskShift.rawValue)
+            if flags.contains(.maskShift) {
+                DispatchQueue.main.async { controller.handleShiftArrowKey(keyCode: keyCode) }
+            } else {
+                DispatchQueue.main.async { controller.handleArrowKey(keyCode: keyCode) }
+            }
             return nil
+        }
+
+        // Shift+0 resets weights
+        if keyCode == zeroKeyCode {
+            let flags = CGEventFlags(rawValue: event.flags.rawValue & CGEventFlags.maskShift.rawValue)
+            if flags.contains(.maskShift) {
+                DispatchQueue.main.async { controller.handleResetWeights() }
+                return nil
+            }
         }
 
         // Prefix state: check if this key resolves a pending prefix

@@ -74,6 +74,33 @@ public class ConfigStore: ObservableObject {
         config.screenLayoutPools.removeValue(forKey: key)
     }
 
+    public func updateLayout(_ layout: GridLayout) {
+        guard let index = config.layouts.firstIndex(where: { $0.id == layout.id }) else { return }
+        config.layouts[index] = layout
+    }
+
+    public func setColumnWeight(layoutID: String, index: Int, value: Double) {
+        guard let li = config.layouts.firstIndex(where: { $0.id == layoutID }) else { return }
+        if config.layouts[li].columnWeights == nil {
+            config.layouts[li].columnWeights = Array(repeating: 1.0, count: config.layouts[li].columns)
+        }
+        config.layouts[li].columnWeights![index] = max(0.1, value)
+    }
+
+    public func setRowWeight(layoutID: String, index: Int, value: Double) {
+        guard let li = config.layouts.firstIndex(where: { $0.id == layoutID }) else { return }
+        if config.layouts[li].rowWeights == nil {
+            config.layouts[li].rowWeights = Array(repeating: 1.0, count: config.layouts[li].rows)
+        }
+        config.layouts[li].rowWeights![index] = max(0.1, value)
+    }
+
+    public func resetWeights(layoutID: String) {
+        guard let li = config.layouts.firstIndex(where: { $0.id == layoutID }) else { return }
+        config.layouts[li].columnWeights = nil
+        config.layouts[li].rowWeights = nil
+    }
+
     public func cycleLayout(on screen: NSScreen? = nil) {
         let pool: [GridLayout]
         let currentID: String

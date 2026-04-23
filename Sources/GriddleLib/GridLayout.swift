@@ -23,13 +23,18 @@ public struct GridLayout: Codable, Identifiable {
     public var columns: Int
     public var rows: Int
     public var cells: [GridCell]
+    public var columnWeights: [Double]?
+    public var rowWeights: [Double]?
 
-    public init(id: String, name: String, columns: Int, rows: Int, cells: [GridCell]) {
+    public init(id: String, name: String, columns: Int, rows: Int, cells: [GridCell],
+                columnWeights: [Double]? = nil, rowWeights: [Double]? = nil) {
         self.id = id
         self.name = name
         self.columns = columns
         self.rows = rows
         self.cells = cells
+        self.columnWeights = columnWeights
+        self.rowWeights = rowWeights
     }
 
     /// Generate default cells for a uniform grid.
@@ -41,6 +46,54 @@ public struct GridLayout: Codable, Identifiable {
             }
         }
         return GridLayout(id: id, name: name, columns: columns, rows: rows, cells: cells)
+    }
+
+    /// Whether this layout has non-uniform weights.
+    public var hasCustomWeights: Bool {
+        if let cw = columnWeights, !cw.allSatisfy({ $0 == cw[0] }) { return true }
+        if let rw = rowWeights, !rw.allSatisfy({ $0 == rw[0] }) { return true }
+        return false
+    }
+
+    /// Name with a `*` suffix when weights are non-uniform.
+    public var displayName: String {
+        hasCustomWeights ? "\(name)*" : name
+    }
+
+    /// Returns column weights normalized to sum to 1.0. Falls back to uniform if nil.
+    public func normalizedColumnWeights() -> [Double] {
+        let raw = columnWeights ?? Array(repeating: 1.0, count: columns)
+        let total = raw.reduce(0, +)
+        guard total > 0 else { return Array(repeating: 1.0 / Double(columns), count: columns) }
+        return raw.map { $0 / total }
+    }
+
+    /// Returns row weights normalized to sum to 1.0. Falls back to uniform if nil.
+    public func normalizedRowWeights() -> [Double] {
+        let raw = rowWeights ?? Array(repeating: 1.0, count: rows)
+        let total = raw.reduce(0, +)
+        guard total > 0 else { return Array(repeating: 1.0 / Double(rows), count: rows) }
+        return raw.map { $0 / total }
+    }
+
+    /// Cumulative column offsets as fractions of the total width: [0, w0, w0+w1, …, 1.0].
+    /// Length is `columns + 1`.
+    public func columnOffsets() -> [Double] {
+        let nw = normalizedColumnWeights()
+        var offsets = [0.0]
+        for w in nw { offsets.append(offsets.last! + w) }
+        offsets[offsets.count - 1] = 1.0
+        return offsets
+    }
+
+    /// Cumulative row offsets as fractions of the total height: [0, h0, h0+h1, …, 1.0].
+    /// Length is `rows + 1`.
+    public func rowOffsets() -> [Double] {
+        let nw = normalizedRowWeights()
+        var offsets = [0.0]
+        for w in nw { offsets.append(offsets.last! + w) }
+        offsets[offsets.count - 1] = 1.0
+        return offsets
     }
 }
 

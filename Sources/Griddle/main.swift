@@ -18,6 +18,10 @@ let configStore = ConfigStore()
 let hotkeyManager = HotkeyManager(config: configStore.config)
 let hudController = HUDController(config: configStore.config)
 hotkeyManager.hudController = hudController
+hudController.onLayoutEdited = { layout in
+    configStore.updateLayout(layout)
+    hotkeyManager.update(config: configStore.config)
+}
 hotkeyManager.onLayoutCycle = {
     let screen = WindowMover.screenForFocusedWindow()
     if hudController.isHUDVisible {

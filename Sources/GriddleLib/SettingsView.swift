@@ -27,7 +27,7 @@ struct SettingsView: View {
                                 }
                             )) {
                                 ForEach(configStore.config.layouts) { layout in
-                                    Text(layout.name).tag(layout.id)
+                                    Text(layout.displayName).tag(layout.id)
                                 }
                             }
                             .pickerStyle(.menu)
@@ -49,7 +49,7 @@ struct SettingsView: View {
                                                 Spacer().frame(width: 12)
                                             }
 
-                                            Text(layout.name)
+                                            Text(layout.displayName)
 
                                             let dims = "\(layout.columns)×\(layout.rows)"
                                             if layout.name != dims {
@@ -106,6 +106,74 @@ struct SettingsView: View {
                         keyLabels: KeyMap.build(for: configStore.config.keyStyle, columns: layout.columns, rows: layout.rows).labels
                     )
                     .frame(height: 100)
+
+                    // MARK: - Proportions
+                    DisclosureGroup("Proportions") {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Columns")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            ForEach(0..<layout.columns, id: \.self) { col in
+                                let weight = layout.columnWeights?[col] ?? 1.0
+                                HStack(spacing: 4) {
+                                    Text("C\(col + 1)")
+                                        .font(.caption2)
+                                        .frame(width: 22, alignment: .leading)
+                                    Slider(
+                                        value: Binding(
+                                            get: { layout.columnWeights?[col] ?? 1.0 },
+                                            set: { val in
+                                                configStore.setColumnWeight(layoutID: layout.id, index: col, value: val)
+                                                hotkeyManager.update(config: configStore.config)
+                                            }
+                                        ),
+                                        in: 0.1...5.0,
+                                        step: 0.1
+                                    )
+                                    Text(String(format: "%.1f", weight))
+                                        .font(.caption2)
+                                        .frame(width: 24, alignment: .trailing)
+                                }
+                            }
+
+                            Text("Rows")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            ForEach(0..<layout.rows, id: \.self) { row in
+                                let weight = layout.rowWeights?[row] ?? 1.0
+                                HStack(spacing: 4) {
+                                    Text("R\(row + 1)")
+                                        .font(.caption2)
+                                        .frame(width: 22, alignment: .leading)
+                                    Slider(
+                                        value: Binding(
+                                            get: { layout.rowWeights?[row] ?? 1.0 },
+                                            set: { val in
+                                                configStore.setRowWeight(layoutID: layout.id, index: row, value: val)
+                                                hotkeyManager.update(config: configStore.config)
+                                            }
+                                        ),
+                                        in: 0.1...5.0,
+                                        step: 0.1
+                                    )
+                                    Text(String(format: "%.1f", weight))
+                                        .font(.caption2)
+                                        .frame(width: 24, alignment: .trailing)
+                                }
+                            }
+
+                            HStack {
+                                Spacer()
+                                Button("Reset to Uniform") {
+                                    configStore.resetWeights(layoutID: layout.id)
+                                    hotkeyManager.update(config: configStore.config)
+                                }
+                                .controlSize(.small)
+                                .disabled(!layout.hasCustomWeights)
+                            }
+                        }
+                    }
+                    .font(.caption)
                 }
 
                 // MARK: - Hotkeys Section
@@ -288,7 +356,7 @@ struct SettingsView: View {
                         )) {
                             Text("Default").tag("")
                             ForEach(screenLayouts) { layout in
-                                Text(layout.name).tag(layout.id)
+                                Text(layout.displayName).tag(layout.id)
                             }
                         }
                         .pickerStyle(.menu)
@@ -310,15 +378,15 @@ struct GridPreviewView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let cellW = geo.size.width / CGFloat(layout.columns)
-            let cellH = geo.size.height / CGFloat(layout.rows)
+            let colOffsets = layout.columnOffsets()
+            let rowOffsets = layout.rowOffsets()
 
             ZStack {
                 ForEach(Array(layout.cells.enumerated()), id: \.offset) { index, cell in
-                    let x = CGFloat(cell.col) * cellW
-                    let y = CGFloat(cell.row) * cellH
-                    let w = cellW * CGFloat(cell.colSpan)
-                    let h = cellH * CGFloat(cell.rowSpan)
+                    let x = CGFloat(colOffsets[cell.col]) * geo.size.width
+                    let y = CGFloat(rowOffsets[cell.row]) * geo.size.height
+                    let w = CGFloat(colOffsets[cell.col + cell.colSpan] - colOffsets[cell.col]) * geo.size.width
+                    let h = CGFloat(rowOffsets[cell.row + cell.rowSpan] - rowOffsets[cell.row]) * geo.size.height
                     let label = (keyLabels != nil && index < keyLabels!.count) ? keyLabels![index] : "\(index + 1)"
 
                     RoundedRectangle(cornerRadius: 4)
