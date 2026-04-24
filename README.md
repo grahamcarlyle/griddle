@@ -30,6 +30,7 @@ Requires macOS 13 (Ventura) or later.
 - **Spatial key mapping** — keys match grid positions (Q/W top row, A/S bottom row), or switch to number keys (1–9)
 - **Multi-cell spanning** — press two keys to stretch a window across cells
 - **Arrow key navigation** — use arrow keys and Enter to select cells without memorising key bindings
+- **Custom proportions** — adjust column/row weights with Shift+arrow keys in the HUD for non-uniform grids
 - **Customisable grids** — built-in 2×2, 3×2, 3×3 layouts, or create your own (up to 6×4)
 - **Per-screen layouts** — assign different grids to different monitors
 - **HUD themes** — System, Green, High Contrast, Purple, or Orange
@@ -51,6 +52,7 @@ With the default layout (2×2) and modifier keys (Ctrl+Alt):
 - Press two letter keys to span the window across those cells (e.g. Q then S = full screen)
 - Use arrow keys to navigate the grid, then Enter to confirm
 - Press two arrows to span across multiple cells (Enter after the first to set the anchor)
+- While spanning, press Shift+arrow to adjust column/row proportions (Shift+0 to reset)
 - Press Escape or tap the modifier keys again to dismiss
 
 By default, keys are mapped spatially to match the grid layout:
@@ -115,6 +117,7 @@ Settings are available via the menu-bar icon (grid icon). You can:
 - Assign different layouts to different screens
 - Choose between spatial letter keys (Q/W/A/S) or number keys (1–9)
 - Pick a HUD colour theme
+- Adjust column/row proportions via sliders or Shift+arrow keys in the HUD
 - Choose modifier keys
 - Change the layout cycle key (Space, Tab, /, 0, −, =)
 - Enable launch at login
