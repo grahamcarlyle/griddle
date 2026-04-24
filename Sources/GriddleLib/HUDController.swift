@@ -203,8 +203,9 @@ public class HUDController {
         case .expanding:
             let anchor = GridCell(col: anchorCol, row: anchorRow, colSpan: 1, rowSpan: 1)
             let target = WindowMover.boundingCell(from: anchor, to: cell)
+            let resolvedLayout = editedLayout ?? layout
             commitWeightsIfNeeded()
-            WindowMover.moveFocusedWindow(to: target, in: editedLayout ?? layout)
+            WindowMover.moveFocusedWindow(to: target, in: resolvedLayout)
             dismissHUD()
         }
     }
@@ -257,18 +258,46 @@ public class HUDController {
             if layout.columnWeights == nil {
                 layout.columnWeights = Array(repeating: 1.0, count: layout.columns)
             }
+            let selectedCount = maxCol - minCol + 1
+            let nonSelectedCount = layout.columns - selectedCount
+            // Equalize selected columns: same weight, preserving their combined total
+            let selectedTotal = (minCol...maxCol).reduce(0.0) { $0 + layout.columnWeights![$1] }
+            let uniform = selectedTotal / Double(selectedCount)
+            for c in minCol...maxCol {
+                layout.columnWeights![c] = uniform
+            }
             let delta = keyCode == Self.arrowRight ? step : -step
             for c in minCol...maxCol {
                 layout.columnWeights![c] = max(0.1, layout.columnWeights![c] + delta)
+            }
+            if nonSelectedCount > 0 {
+                let compensation = delta * Double(selectedCount) / Double(nonSelectedCount)
+                for c in 0..<layout.columns where c < minCol || c > maxCol {
+                    layout.columnWeights![c] = max(0.1, layout.columnWeights![c] - compensation)
+                }
             }
         case Self.arrowUp, Self.arrowDown:
             if layout.rowWeights == nil {
                 layout.rowWeights = Array(repeating: 1.0, count: layout.rows)
             }
+            let selectedCount = maxRow - minRow + 1
+            let nonSelectedCount = layout.rows - selectedCount
+            // Equalize selected rows: same weight, preserving their combined total
+            let selectedTotal = (minRow...maxRow).reduce(0.0) { $0 + layout.rowWeights![$1] }
+            let uniform = selectedTotal / Double(selectedCount)
+            for r in minRow...maxRow {
+                layout.rowWeights![r] = uniform
+            }
             // Shift+Up grows (more height), Shift+Down shrinks
             let delta = keyCode == Self.arrowUp ? step : -step
             for r in minRow...maxRow {
                 layout.rowWeights![r] = max(0.1, layout.rowWeights![r] + delta)
+            }
+            if nonSelectedCount > 0 {
+                let compensation = delta * Double(selectedCount) / Double(nonSelectedCount)
+                for r in 0..<layout.rows where r < minRow || r > maxRow {
+                    layout.rowWeights![r] = max(0.1, layout.rowWeights![r] - compensation)
+                }
             }
         default:
             break
@@ -319,8 +348,9 @@ public class HUDController {
         let anchor = GridCell(col: anchorCol, row: anchorRow, colSpan: 1, rowSpan: 1)
         let extent = GridCell(col: extentCol, row: extentRow, colSpan: 1, rowSpan: 1)
         let target = WindowMover.boundingCell(from: anchor, to: extent)
+        let resolvedLayout = editedLayout ?? layout
         commitWeightsIfNeeded()
-        WindowMover.moveFocusedWindow(to: target, in: editedLayout ?? layout)
+        WindowMover.moveFocusedWindow(to: target, in: resolvedLayout)
         dismissHUD()
     }
 
