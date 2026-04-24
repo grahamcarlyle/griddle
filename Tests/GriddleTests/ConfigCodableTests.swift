@@ -198,4 +198,75 @@ struct ConfigCodableTests {
         let decoded = try JSONDecoder().decode(GriddleConfig.self, from: json)
         #expect(decoded.hudTheme == .system)
     }
+
+    @Test("layout with columnWeights roundtrips through JSON")
+    func columnWeightsRoundtrip() throws {
+        var layout = GridLayout.uniform(id: "3x2", name: "3×2", columns: 3, rows: 2)
+        layout.columnWeights = [1.0, 2.5, 1.0]
+        let config = GriddleConfig(
+            activeLayoutID: "3x2",
+            layouts: [layout],
+            modifier: .init(keys: ["ctrl"])
+        )
+        let data = try JSONEncoder().encode(config)
+        let decoded = try JSONDecoder().decode(GriddleConfig.self, from: data)
+        #expect(decoded.layouts[0].columnWeights == [1.0, 2.5, 1.0])
+        #expect(decoded.layouts[0].rowWeights == nil)
+    }
+
+    @Test("layout with rowWeights roundtrips through JSON")
+    func rowWeightsRoundtrip() throws {
+        var layout = GridLayout.uniform(id: "2x3", name: "2×3", columns: 2, rows: 3)
+        layout.rowWeights = [1.0, 0.5, 2.0]
+        let config = GriddleConfig(
+            activeLayoutID: "2x3",
+            layouts: [layout],
+            modifier: .init(keys: ["ctrl"])
+        )
+        let data = try JSONEncoder().encode(config)
+        let decoded = try JSONDecoder().decode(GriddleConfig.self, from: data)
+        #expect(decoded.layouts[0].rowWeights == [1.0, 0.5, 2.0])
+        #expect(decoded.layouts[0].columnWeights == nil)
+    }
+
+    @Test("legacy JSON without weight keys decodes with nil weights")
+    func legacyJsonNoWeights() throws {
+        let json = """
+        {
+            "activeLayoutID": "2x2",
+            "layouts": [{
+                "id": "2x2",
+                "name": "2×2",
+                "columns": 2,
+                "rows": 2,
+                "cells": [
+                    {"col": 0, "row": 0, "colSpan": 1, "rowSpan": 1},
+                    {"col": 1, "row": 0, "colSpan": 1, "rowSpan": 1},
+                    {"col": 0, "row": 1, "colSpan": 1, "rowSpan": 1},
+                    {"col": 1, "row": 1, "colSpan": 1, "rowSpan": 1}
+                ]
+            }],
+            "modifier": {"keys": ["ctrl", "alt"]}
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(GriddleConfig.self, from: json)
+        #expect(decoded.layouts[0].columnWeights == nil)
+        #expect(decoded.layouts[0].rowWeights == nil)
+    }
+
+    @Test("layout with both column and row weights roundtrips")
+    func bothWeightsRoundtrip() throws {
+        var layout = GridLayout.uniform(id: "3x3", name: "3×3", columns: 3, rows: 3)
+        layout.columnWeights = [1.0, 2.0, 1.0]
+        layout.rowWeights = [1.0, 1.0, 0.5]
+        let config = GriddleConfig(
+            activeLayoutID: "3x3",
+            layouts: [layout],
+            modifier: .init(keys: ["ctrl"])
+        )
+        let data = try JSONEncoder().encode(config)
+        let decoded = try JSONDecoder().decode(GriddleConfig.self, from: data)
+        #expect(decoded.layouts[0].columnWeights == [1.0, 2.0, 1.0])
+        #expect(decoded.layouts[0].rowWeights == [1.0, 1.0, 0.5])
+    }
 }

@@ -23,6 +23,9 @@ class HUDOverlayView: NSView {
     /// Cells not in this set are dimmed. Each entry maps cellIndex → child key label.
     var prefixReachableCells: [Int: String]? { didSet { needsDisplay = true } }
 
+    /// When true, shows weight percentages as a status strip.
+    var showWeightStatus: Bool = false { didSet { needsDisplay = true } }
+
     private func themeColors() -> (cellColor: NSColor, bgAlpha: CGFloat) {
         switch theme {
         case .system:
@@ -66,15 +69,15 @@ class HUDOverlayView: NSView {
 
         guard let layout = layout, let _ = NSGraphicsContext.current?.cgContext else { return }
 
-        let cellWidth = bounds.width / CGFloat(layout.columns)
-        let cellHeight = bounds.height / CGFloat(layout.rows)
+        let colOffsets = layout.columnOffsets()
+        let rowOffsets = layout.rowOffsets()
 
         for (index, cell) in layout.cells.enumerated() {
             // AppKit coordinates: origin is bottom-left, so flip row
-            let x = bounds.origin.x + CGFloat(cell.col) * cellWidth
-            let y = bounds.origin.y + bounds.height - CGFloat(cell.row + cell.rowSpan) * cellHeight
-            let w = cellWidth * CGFloat(cell.colSpan)
-            let h = cellHeight * CGFloat(cell.rowSpan)
+            let x = bounds.origin.x + CGFloat(colOffsets[cell.col]) * bounds.width
+            let y = bounds.origin.y + bounds.height - CGFloat(rowOffsets[cell.row + cell.rowSpan]) * bounds.height
+            let w = CGFloat(colOffsets[cell.col + cell.colSpan] - colOffsets[cell.col]) * bounds.width
+            let h = CGFloat(rowOffsets[cell.row + cell.rowSpan] - rowOffsets[cell.row]) * bounds.height
 
             let cellRect = CGRect(x: x + 4, y: y + 4, width: w - 8, height: h - 8)
             let path = NSBezierPath(roundedRect: cellRect, xRadius: 8, yRadius: 8)
@@ -129,6 +132,35 @@ class HUDOverlayView: NSView {
                 y: cellRect.midY - size.height / 2
             )
             label.draw(at: labelPoint, withAttributes: attrs)
+        }
+
+        if showWeightStatus {
+            let colWeights = layout.normalizedColumnWeights()
+            let rowWeights = layout.normalizedRowWeights()
+            let colStr = colWeights.map { "\(Int(($0 * 100).rounded()))%" }.joined(separator: " / ")
+            let rowStr = rowWeights.map { "\(Int(($0 * 100).rounded()))%" }.joined(separator: " / ")
+            let statusText = "cols: \(colStr)   rows: \(rowStr)"
+
+            let statusAttrs: [NSAttributedString.Key: Any] = [
+                .font: NSFont.systemFont(ofSize: 18, weight: .medium),
+                .foregroundColor: NSColor.white.withAlphaComponent(0.85)
+            ]
+            let statusSize = statusText.size(withAttributes: statusAttrs)
+
+            let bgRect = CGRect(
+                x: bounds.midX - statusSize.width / 2 - 16,
+                y: bounds.maxY - statusSize.height - 24,
+                width: statusSize.width + 32,
+                height: statusSize.height + 12
+            )
+            let bgPath = NSBezierPath(roundedRect: bgRect, xRadius: 8, yRadius: 8)
+            NSColor.black.withAlphaComponent(0.6).setFill()
+            bgPath.fill()
+
+            statusText.draw(
+                at: NSPoint(x: bgRect.midX - statusSize.width / 2, y: bgRect.midY - statusSize.height / 2),
+                withAttributes: statusAttrs
+            )
         }
     }
 }
