@@ -10,6 +10,7 @@ public class ConfigStore: ObservableObject {
 
     public init() {
         config = GriddleConfig.load()
+        sortLayouts()
     }
 
     public var activeLayout: GridLayout? {
@@ -22,6 +23,7 @@ public class ConfigStore: ObservableObject {
 
     public func addLayout(_ layout: GridLayout) {
         config.layouts.append(layout)
+        sortLayouts()
     }
 
     public func removeLayout(id: String) {
@@ -77,6 +79,16 @@ public class ConfigStore: ObservableObject {
     public func updateLayout(_ layout: GridLayout) {
         guard let index = config.layouts.firstIndex(where: { $0.id == layout.id }) else { return }
         config.layouts[index] = layout
+    }
+
+    public func renameLayout(id: String, name: String) {
+        guard let index = config.layouts.firstIndex(where: { $0.id == id }) else { return }
+        config.layouts[index].name = name
+        sortLayouts()
+    }
+
+    private func sortLayouts() {
+        config.layouts.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
     public func setColumnWeight(layoutID: String, index: Int, value: Double) {

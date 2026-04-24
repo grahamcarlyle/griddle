@@ -8,6 +8,8 @@ struct SettingsView: View {
     @State private var newCols = 3
     @State private var newRows = 2
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @State private var editingLayoutID: String?
+    @State private var editingName: String = ""
 
     var body: some View {
             VStack(alignment: .leading, spacing: 16) {
@@ -49,12 +51,39 @@ struct SettingsView: View {
                                                 Spacer().frame(width: 12)
                                             }
 
-                                            Text(layout.displayName)
+                                            if editingLayoutID == layout.id {
+                                                TextField("Name", text: $editingName, onCommit: {
+                                                    let trimmed = editingName.trimmingCharacters(in: .whitespaces)
+                                                    if !trimmed.isEmpty {
+                                                        configStore.renameLayout(id: layout.id, name: trimmed)
+                                                    }
+                                                    editingLayoutID = nil
+                                                })
+                                                .textFieldStyle(.roundedBorder)
+                                                .frame(maxWidth: 100)
+                                            } else {
+                                                Text(layout.displayName)
 
-                                            let dims = "\(layout.columns)×\(layout.rows)"
-                                            if layout.name != dims {
-                                                Text(dims)
-                                                    .foregroundColor(.secondary)
+                                                let dims = "\(layout.columns)×\(layout.rows)"
+                                                if layout.name != dims && !layout.name.hasPrefix(dims) {
+                                                    Text(dims)
+                                                        .foregroundColor(.secondary)
+                                                }
+
+                                                Button {
+                                                    editingName = layout.name
+                                                    editingLayoutID = layout.id
+                                                } label: {
+                                                    Image(systemName: "pencil")
+                                                }
+                                                .buttonStyle(.plain)
+                                                .foregroundColor(.secondary)
+                                            }
+
+                                            if isDuplicate(layout) {
+                                                Text("duplicate")
+                                                    .font(.caption2)
+                                                    .foregroundColor(.orange)
                                             }
 
                                             Spacer()
@@ -82,16 +111,15 @@ struct SettingsView: View {
                                 Stepper("Rows: \(newRows)", value: $newRows, in: 1...4)
                             }
 
-                            let alreadyExists = configStore.config.layouts.contains { $0.columns == newCols && $0.rows == newRows }
-
                             Button("Add \(newCols)×\(newRows)") {
                                 let id = "\(newCols)x\(newRows)_\(Int(Date().timeIntervalSince1970))"
-                                let layout = GridLayout.uniform(id: id, name: "\(newCols)×\(newRows)", columns: newCols, rows: newRows)
+                                let existingCount = configStore.config.layouts.filter { $0.columns == newCols && $0.rows == newRows }.count
+                                let name = existingCount > 0 ? "\(newCols)×\(newRows) (\(existingCount + 1))" : "\(newCols)×\(newRows)"
+                                let layout = GridLayout.uniform(id: id, name: name, columns: newCols, rows: newRows)
                                 configStore.addLayout(layout)
                                 configStore.setActiveLayout(id: id)
                                 hotkeyManager.update(config: configStore.config)
                             }
-                            .disabled(alreadyExists)
                             .buttonStyle(.borderedProminent)
                             .controlSize(.small)
                         }
@@ -275,6 +303,20 @@ struct SettingsView: View {
             }
             .padding()
             .frame(width: 320)
+    }
+
+    // MARK: - Duplicate Detection
+
+    private func isDuplicate(_ layout: GridLayout) -> Bool {
+        let colWeights = layout.normalizedColumnWeights()
+        let rowWeights = layout.normalizedRowWeights()
+        return configStore.config.layouts.contains { other in
+            other.id != layout.id
+                && other.columns == layout.columns
+                && other.rows == layout.rows
+                && other.normalizedColumnWeights().elementsEqual(colWeights, by: { abs($0 - $1) < 0.001 })
+                && other.normalizedRowWeights().elementsEqual(rowWeights, by: { abs($0 - $1) < 0.001 })
+        }
     }
 
     // MARK: - Per-Screen Rows
