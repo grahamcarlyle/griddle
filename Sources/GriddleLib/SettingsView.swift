@@ -59,6 +59,7 @@ struct SettingsView: View {
                                                     }
                                                     editingLayoutID = nil
                                                 })
+                                                .onExitCommand { editingLayoutID = nil }
                                                 .textFieldStyle(.roundedBorder)
                                                 .frame(maxWidth: 100)
                                             } else {
@@ -98,6 +99,11 @@ struct SettingsView: View {
                                                 .buttonStyle(.plain)
                                                 .foregroundColor(.red.opacity(0.7))
                                             }
+                                        }
+                                        .contentShape(Rectangle())
+                                        .onTapGesture {
+                                            configStore.setActiveLayout(id: layout.id)
+                                            hotkeyManager.update(config: configStore.config)
                                         }
                                     }
                                 }
