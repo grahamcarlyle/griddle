@@ -41,7 +41,6 @@ class DemoController {
 
         guard let screen = displaySystem.mainScreen else {
             NSLog("GriddleDemo: No screen available")
-            NSApplication.shared.terminate(nil)
             return
         }
 
@@ -54,9 +53,6 @@ class DemoController {
         }
 
         NSLog("GriddleDemo: All sequences complete — output in \(outputDir)")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            NSApplication.shared.terminate(nil)
-        }
     }
 
     private func runSequence(_ sequence: DemoSequence, screen: ScreenInfo) {
@@ -80,6 +76,12 @@ class DemoController {
 
         if !frames.isEmpty {
             composeAPNG(frames: frames, name: sequence.name)
+            // Save individual frame PNGs for snapshot testing
+            let framesDir = "\(outputDir)/frames"
+            try? FileManager.default.createDirectory(atPath: framesDir, withIntermediateDirectories: true)
+            for (index, (image, _)) in frames.enumerated() {
+                savePNG(image: image, to: "\(framesDir)/\(sequence.name)-\(index).png")
+            }
             NSLog("GriddleDemo: \(sequence.name).png (\(frames.count) frames)")
         }
     }
@@ -217,6 +219,18 @@ class DemoController {
             CGImageDestinationAddImage(dest, image, properties as CFDictionary)
         }
 
+        CGImageDestinationFinalize(dest)
+    }
+
+    private func savePNG(image: CGImage, to path: String) {
+        let url = URL(fileURLWithPath: path)
+        guard let dest = CGImageDestinationCreateWithURL(
+            url as CFURL,
+            UTType.png.identifier as CFString,
+            1,
+            nil
+        ) else { return }
+        CGImageDestinationAddImage(dest, image, nil)
         CGImageDestinationFinalize(dest)
     }
 }
