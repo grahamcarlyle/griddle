@@ -23,6 +23,8 @@ Griddle is a lightweight menu-bar utility inspired by [GNOME Tactile](https://ex
 
 Requires macOS 13 (Ventura) or later.
 
+See the **[visual feature guide](docs/features.md)** for animated demos of each feature.
+
 ## Highlights
 
 - **Instant tiling** — modifier + letter key moves the focused window to a grid cell

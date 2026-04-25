@@ -47,7 +47,11 @@ class SimulatedDesktopView: NSView {
         "Finder  File  Edit  View  Go  Window  Help".draw(at: NSPoint(x: 36, y: bounds.height - 20), withAttributes: menuLightAttrs)
 
         // Draw each simulated window (AX coordinates: top-left origin → flip to AppKit bottom-left)
-        for window in displaySystem.windows {
+        // Unfocused windows first, focused window last (on top)
+        for window in displaySystem.windows where !window.isFocused {
+            drawWindow(window, in: bounds)
+        }
+        for window in displaySystem.windows where window.isFocused {
             drawWindow(window, in: bounds)
         }
     }
@@ -105,23 +109,31 @@ class SimulatedDesktopView: NSView {
         titleBarPath.line(to: NSPoint(x: titleBarRect.maxX, y: titleBarRect.minY))
         titleBarPath.close()
 
-        NSColor(calibratedWhite: 0.22, alpha: 1.0).setFill()
+        // Focused windows have brighter title bars; unfocused are dimmer
+        let titleBarBrightness: CGFloat = window.isFocused ? 0.25 : 0.18
+        NSColor(calibratedWhite: titleBarBrightness, alpha: 1.0).setFill()
         titleBarPath.fill()
 
         // Title bar separator line
         NSColor(calibratedWhite: 0.15, alpha: 1.0).setFill()
         NSRect(x: titleBarRect.minX, y: titleBarRect.minY, width: titleBarRect.width, height: 1).fill()
 
-        // Traffic lights
+        // Traffic lights — colored when focused, grey when unfocused
         let trafficLightY = titleBarRect.midY
         let trafficLightStartX = titleBarRect.minX + 14
         let lightRadius: CGFloat = 6
 
-        let colors: [NSColor] = [
-            NSColor(calibratedRed: 1.0, green: 0.38, blue: 0.34, alpha: 1.0),  // close (red)
-            NSColor(calibratedRed: 1.0, green: 0.78, blue: 0.24, alpha: 1.0),  // minimize (yellow)
-            NSColor(calibratedRed: 0.30, green: 0.84, blue: 0.40, alpha: 1.0), // zoom (green)
-        ]
+        let colors: [NSColor]
+        if window.isFocused {
+            colors = [
+                NSColor(calibratedRed: 1.0, green: 0.38, blue: 0.34, alpha: 1.0),  // close (red)
+                NSColor(calibratedRed: 1.0, green: 0.78, blue: 0.24, alpha: 1.0),  // minimize (yellow)
+                NSColor(calibratedRed: 0.30, green: 0.84, blue: 0.40, alpha: 1.0), // zoom (green)
+            ]
+        } else {
+            let grey = NSColor(calibratedWhite: 0.35, alpha: 1.0)
+            colors = [grey, grey, grey]
+        }
 
         for (i, color) in colors.enumerated() {
             let cx = trafficLightStartX + CGFloat(i) * 20
@@ -130,11 +142,12 @@ class SimulatedDesktopView: NSView {
             NSBezierPath(ovalIn: lightRect).fill()
         }
 
-        // Title text
+        // Title text — brighter for focused window
+        let titleAlpha: CGFloat = window.isFocused ? 0.9 : 0.5
         let titleFont = NSFont.systemFont(ofSize: 12, weight: .medium)
         let titleAttrs: [NSAttributedString.Key: Any] = [
             .font: titleFont,
-            .foregroundColor: NSColor.white.withAlphaComponent(0.8)
+            .foregroundColor: NSColor.white.withAlphaComponent(titleAlpha)
         ]
         let titleSize = (window.title as NSString).size(withAttributes: titleAttrs)
         let titleX = titleBarRect.midX - titleSize.width / 2

@@ -1,37 +1,42 @@
 import Cocoa
 import SwiftUI
+import ImageIO
+import UniformTypeIdentifiers
 import GriddleLib
 
 // Disambiguate from SwiftUI.GridLayout (macOS 13+)
 typealias GridLayout = GriddleLib.GridLayout
 
-/// Orchestrates a demo sequence, capturing screenshots at each step.
+/// Orchestrates demo sequences, rendering each to individual PNGs and per-sequence APNGs.
 class DemoController {
-    let displaySystem: SimulatedDisplaySystem
-    let config: GriddleConfig
     let outputDir: String
-    var panel: NSPanel?
+    let config: GriddleConfig
     var desktopView: SimulatedDesktopView?
     var overlayView: HUDOverlayView?
-    var stepIndex = 0
+    var displaySystem: SimulatedDisplaySystem
+
+    private let initialWindows: [SimWindow] = [
+        SimWindow(title: "Welcome to Safari", appName: "Safari",
+                  frame: CGRect(x: 80, y: 80, width: 700, height: 500), isFocused: true),
+        SimWindow(title: "Terminal — zsh", appName: "Terminal",
+                  frame: CGRect(x: 300, y: 200, width: 600, height: 400)),
+        SimWindow(title: "Notes", appName: "Notes",
+                  frame: CGRect(x: 500, y: 120, width: 500, height: 450)),
+    ]
+
+    // Track state applied during a sequence
+    private var activeWeights: (columnWeights: [Double]?, rowWeights: [Double]?) = (nil, nil)
+    private var activeLayoutID: String?
 
     init(outputDir: String) {
         self.outputDir = outputDir
         self.config = GriddleConfig.default
         let sim = SimulatedDisplaySystem()
-        sim.windows = [
-            SimWindow(title: "Welcome to Safari", appName: "Safari",
-                      frame: CGRect(x: 80, y: 80, width: 700, height: 500), isFocused: true),
-            SimWindow(title: "Terminal — zsh", appName: "Terminal",
-                      frame: CGRect(x: 300, y: 200, width: 600, height: 400)),
-            SimWindow(title: "Notes", appName: "Notes",
-                      frame: CGRect(x: 500, y: 120, width: 500, height: 450)),
-        ]
+        sim.windows = initialWindows
         self.displaySystem = sim
     }
 
     func run() {
-        // Create output directory
         try? FileManager.default.createDirectory(atPath: outputDir, withIntermediateDirectories: true)
 
         guard let screen = displaySystem.mainScreen else {
@@ -40,96 +45,119 @@ class DemoController {
             return
         }
 
-        // Create the desktop panel (full-screen, floating)
-        let screenFrame = screen.frame
-        let panel = NSPanel(
-            contentRect: screenFrame,
-            styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered,
-            defer: false
-        )
-        panel.level = .floating
-        panel.isOpaque = true
-        panel.backgroundColor = .black
-        panel.hasShadow = false
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-
         let desktopView = SimulatedDesktopView(displaySystem: displaySystem, screenInfo: screen)
-        panel.contentView = desktopView
-        panel.orderFrontRegardless()
-
-        self.panel = panel
+        desktopView.setFrameSize(screen.frame.size)
         self.desktopView = desktopView
 
-        // Run the demo sequence with delays
-        runNextStep()
+        for sequence in DemoSequence.all {
+            runSequence(sequence, screen: screen)
+        }
+
+        NSLog("GriddleDemo: All sequences complete — output in \(outputDir)")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            NSApplication.shared.terminate(nil)
+        }
     }
 
-    private func runNextStep() {
-        guard let screen = displaySystem.mainScreen else { return }
-        let layout = config.layouts.first(where: { $0.id == config.activeLayoutID }) ?? config.layouts[0]
+    private func runSequence(_ sequence: DemoSequence, screen: ScreenInfo) {
+        var frames: [(CGImage, TimeInterval)] = []
 
-        switch stepIndex {
-        case 0:
-            // Screenshot 1: Desktop with scattered windows (no HUD)
-            captureAfterDelay(name: "01-desktop")
+        for step in sequence.steps {
+            for action in step.actions {
+                apply(action, screen: screen)
+            }
 
-        case 1:
-            // Screenshot 2: HUD overlay showing 3x2 grid
-            showOverlay(layout: layout, screen: screen)
-            captureAfterDelay(name: "02-hud-grid")
+            desktopView?.needsDisplay = true
+            desktopView?.displayIfNeeded()
 
-        case 2:
-            // Screenshot 3: Cell highlighted (cursor on top-left)
-            overlayView?.highlightedRegion = HighlightRegion(minCol: 0, minRow: 0, maxCol: 0, maxRow: 0)
-            captureAfterDelay(name: "03-cell-selected")
+            guard let image = renderViewToBitmap(desktopView!) else {
+                NSLog("GriddleDemo: Failed to render \(sequence.name)/\(step.description)")
+                continue
+            }
 
-        case 3:
-            // Screenshot 4: Multi-cell selection (spanning top two cells)
-            overlayView?.highlightedRegion = HighlightRegion(minCol: 0, minRow: 0, maxCol: 1, maxRow: 0)
-            captureAfterDelay(name: "04-multi-cell")
+            frames.append((image, step.hold))
+        }
 
-        case 4:
-            // Screenshot 5: Window tiled into top-left cell
+        if !frames.isEmpty {
+            composeAPNG(frames: frames, name: sequence.name)
+            NSLog("GriddleDemo: \(sequence.name).png (\(frames.count) frames)")
+        }
+    }
+
+    // MARK: - Action Interpreter
+
+    private func apply(_ action: DemoAction, screen: ScreenInfo) {
+        switch action {
+        case .showDesktop:
             removeOverlay()
-            let cell = layout.cells[0]
+
+        case .showHUD(let layoutID, let theme):
+            guard let layout = config.layouts.first(where: { $0.id == layoutID }) else { return }
+            activeLayoutID = layoutID
+            var displayLayout = layout
+            if let cw = activeWeights.columnWeights { displayLayout.columnWeights = cw }
+            if let rw = activeWeights.rowWeights { displayLayout.rowWeights = rw }
+            showOverlay(layout: displayLayout, screen: screen, theme: theme)
+
+        case .highlight(let col, let row):
+            overlayView?.highlightedRegion = HighlightRegion(minCol: col, minRow: row, maxCol: col, maxRow: row)
+
+        case .highlightRegion(let minCol, let minRow, let maxCol, let maxRow):
+            overlayView?.highlightedRegion = HighlightRegion(minCol: minCol, minRow: minRow, maxCol: maxCol, maxRow: maxRow)
+
+        case .tileWindow(let windowIndex, let cellIndex):
+            let lid = activeLayoutID ?? config.activeLayoutID
+            guard var layout = config.layouts.first(where: { $0.id == lid }),
+                  cellIndex < layout.cells.count,
+                  windowIndex < displaySystem.windows.count else { return }
+            if let cw = activeWeights.columnWeights { layout.columnWeights = cw }
+            if let rw = activeWeights.rowWeights { layout.rowWeights = rw }
+            displaySystem.focusWindow(at: windowIndex)
+            let cell = layout.cells[cellIndex]
             let frame = WindowMover.frame(for: cell, in: layout, on: screen)
             displaySystem.moveFocusedWindow(to: frame)
             desktopView?.needsDisplay = true
-            captureAfterDelay(name: "05-window-tiled")
 
-        case 5:
-            // Screenshot 6: Show HUD with different theme (green)
-            var greenConfig = config
-            greenConfig.hudTheme = .green
-            let greenLayout = greenConfig.layouts.first(where: { $0.id == greenConfig.activeLayoutID }) ?? greenConfig.layouts[0]
-            showOverlay(layout: greenLayout, screen: screen, theme: .green)
-            captureAfterDelay(name: "06-theme-green")
+        case .tileWindowToRegion(let windowIndex, let minCol, let minRow, let maxCol, let maxRow):
+            let lid = activeLayoutID ?? config.activeLayoutID
+            guard var layout = config.layouts.first(where: { $0.id == lid }),
+                  windowIndex < displaySystem.windows.count else { return }
+            if let cw = activeWeights.columnWeights { layout.columnWeights = cw }
+            if let rw = activeWeights.rowWeights { layout.rowWeights = rw }
+            displaySystem.focusWindow(at: windowIndex)
+            let anchor = GridCell(col: minCol, row: minRow, colSpan: 1, rowSpan: 1)
+            let extent = GridCell(col: maxCol, row: maxRow, colSpan: 1, rowSpan: 1)
+            let target = WindowMover.boundingCell(from: anchor, to: extent)
+            let frame = WindowMover.frame(for: target, in: layout, on: screen)
+            displaySystem.moveFocusedWindow(to: frame)
+            desktopView?.needsDisplay = true
 
-        case 6:
-            // Screenshot 7: Purple theme
+        case .dismissHUD:
             removeOverlay()
-            let purpleLayout = layout
-            showOverlay(layout: purpleLayout, screen: screen, theme: .purple)
-            captureAfterDelay(name: "07-theme-purple")
 
-        case 7:
-            // Screenshot 8: Show settings view
+        case .resetWindows:
+            displaySystem.windows = initialWindows
+            activeWeights = (nil, nil)
+            activeLayoutID = nil
             removeOverlay()
-            showSettings()
-            captureAfterDelay(name: "08-settings")
+            desktopView?.needsDisplay = true
 
-        default:
-            // Done
-            NSLog("GriddleDemo: All screenshots captured to \(outputDir)")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                NSApplication.shared.terminate(nil)
+        case .setWeights(let columnWeights, let rowWeights):
+            activeWeights = (columnWeights, rowWeights)
+            if var layout = overlayView?.layout {
+                layout.columnWeights = columnWeights
+                layout.rowWeights = rowWeights
+                overlayView?.layout = layout
+                overlayView?.needsDisplay = true
             }
-            return
-        }
 
-        stepIndex += 1
+        case .showWeightStatus:
+            overlayView?.showWeightStatus = true
+            overlayView?.needsDisplay = true
+        }
     }
+
+    // MARK: - Overlay Management
 
     private func showOverlay(layout: GridLayout, screen: ScreenInfo, theme: HUDTheme = .system) {
         removeOverlay()
@@ -140,7 +168,6 @@ class DemoController {
         overlayView.keyLabels = keyMap.labels
         overlayView.theme = theme
 
-        // Add overlay as a subview on top of the desktop
         desktopView?.addSubview(overlayView)
         self.overlayView = overlayView
     }
@@ -150,42 +177,46 @@ class DemoController {
         overlayView = nil
     }
 
-    private func showSettings() {
-        let configStore = ConfigStore()
-        let hotkeyManager = HotkeyManager(config: configStore.config, displaySystem: displaySystem, inputSource: ScriptedInputSource())
+    // MARK: - Bitmap Rendering
 
-        let settingsWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 340, height: 520),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
-        )
-        settingsWindow.title = "Griddle"
-        settingsWindow.center()
-
-        let hostingController = NSHostingController(
-            rootView: SettingsView(configStore: configStore, hotkeyManager: hotkeyManager, screens: displaySystem.screens)
-        )
-        settingsWindow.contentViewController = hostingController
-        settingsWindow.orderFrontRegardless()
+    private func renderViewToBitmap(_ view: NSView) -> CGImage? {
+        let bounds = view.bounds
+        guard let bitmapRep = view.bitmapImageRepForCachingDisplay(in: bounds) else { return nil }
+        view.cacheDisplay(in: bounds, to: bitmapRep)
+        return bitmapRep.cgImage
     }
 
-    private func captureAfterDelay(name: String) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            self?.captureScreenshot(name: name)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
-                self?.runNextStep()
-            }
-        }
-    }
+    // MARK: - APNG Composition
 
-    private func captureScreenshot(name: String) {
+    private func composeAPNG(frames: [(CGImage, TimeInterval)], name: String) {
         let path = "\(outputDir)/\(name).png"
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        process.arguments = ["-x", path]
-        try? process.run()
-        process.waitUntilExit()
-        NSLog("GriddleDemo: Captured \(path)")
+        let url = URL(fileURLWithPath: path)
+
+        guard let dest = CGImageDestinationCreateWithURL(
+            url as CFURL,
+            UTType.png.identifier as CFString,
+            frames.count,
+            nil
+        ) else {
+            NSLog("GriddleDemo: Failed to create APNG destination for \(name)")
+            return
+        }
+
+        let fileProperties: [CFString: Any] = [
+            kCGImagePropertyAPNGLoopCount: 0
+        ]
+        CGImageDestinationSetProperties(dest, fileProperties as CFDictionary)
+
+        for (image, hold) in frames {
+            let frameProperties: [CFString: Any] = [
+                kCGImagePropertyAPNGDelayTime: hold
+            ]
+            let properties: [CFString: Any] = [
+                kCGImagePropertyPNGDictionary: frameProperties
+            ]
+            CGImageDestinationAddImage(dest, image, properties as CFDictionary)
+        }
+
+        CGImageDestinationFinalize(dest)
     }
 }
