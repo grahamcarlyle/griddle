@@ -1,12 +1,11 @@
-import Cocoa
+import Foundation
 
 /// Manages the HUD grid overlay: tap-toggle activation, two-stage cell selection.
 public class HUDController: InputHandler {
     private var config: GriddleConfig
     private let displaySystem: DisplaySystem
     private let inputSource: InputSource
-    private var panel: NSPanel?
-    private var overlayView: HUDOverlayView?
+    private let presenter: HUDPresenter
     public private(set) var isHUDVisible = false
     private var activeLayout: GridLayout?
     private var activeKeyMap: KeyMap?
@@ -43,10 +42,11 @@ public class HUDController: InputHandler {
     private static let arrowRight: UInt16 = 124
     private static let zeroKeyCode: UInt16 = 29
 
-    public init(config: GriddleConfig, displaySystem: DisplaySystem, inputSource: InputSource) {
+    public init(config: GriddleConfig, displaySystem: DisplaySystem, inputSource: InputSource, presenter: HUDPresenter = PanelHUDPresenter()) {
         self.config = config
         self.displaySystem = displaySystem
         self.inputSource = inputSource
+        self.presenter = presenter
     }
 
     public func update(config: GriddleConfig) {
@@ -137,33 +137,10 @@ public class HUDController: InputHandler {
         guard let screen = displaySystem.screenForFocusedWindow() ?? displaySystem.mainScreen else { return }
         guard let layout = config.layoutForScreen(key: screen.id) else { return }
 
-        let screenFrame = screen.visibleFrame
         let keyMap = KeyMap.build(for: config.keyStyle, columns: layout.columns, rows: layout.rows)
-        let keyLabels = keyMap.labels
 
-        let panel = NSPanel(
-            contentRect: screenFrame,
-            styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered,
-            defer: false
-        )
-        panel.level = .floating
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.hasShadow = false
-        panel.ignoresMouseEvents = true
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        presenter.showOverlay(on: screen, layout: layout, keyLabels: keyMap.labels, theme: config.hudTheme)
 
-        let overlayView = HUDOverlayView(frame: NSRect(origin: .zero, size: screenFrame.size))
-        overlayView.layout = layout
-        overlayView.keyLabels = keyLabels
-        overlayView.theme = config.hudTheme
-        panel.contentView = overlayView
-
-        panel.orderFrontRegardless()
-
-        self.panel = panel
-        self.overlayView = overlayView
         self.isHUDVisible = true
         self.activeKeyMap = keyMap
         self.activeScreen = screen
@@ -180,30 +157,8 @@ public class HUDController: InputHandler {
 
     private func showDisabledHUD(message: String) {
         guard let screen = displaySystem.mainScreen else { return }
-        let screenFrame = screen.frame
 
-        let panel = NSPanel(
-            contentRect: screenFrame,
-            styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered,
-            defer: false
-        )
-        panel.level = .floating
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.hasShadow = false
-        panel.ignoresMouseEvents = true
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-
-        let overlayView = HUDOverlayView(frame: NSRect(origin: .zero, size: screenFrame.size))
-        overlayView.theme = config.hudTheme
-        overlayView.disabledMessage = message
-        panel.contentView = overlayView
-
-        panel.orderFrontRegardless()
-
-        self.panel = panel
-        self.overlayView = overlayView
+        presenter.showDisabledOverlay(on: screen, message: message, theme: config.hudTheme)
         self.isHUDVisible = true
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
@@ -218,9 +173,7 @@ public class HUDController: InputHandler {
         weightsDirty = false
         activeScreen = nil
         inputSource.stop()
-        panel?.orderOut(nil)
-        panel = nil
-        overlayView = nil
+        presenter.dismiss()
         activeKeyMap = nil
         isHUDVisible = false
     }
@@ -348,9 +301,8 @@ public class HUDController: InputHandler {
 
         editedLayout = layout
         weightsDirty = true
-        overlayView?.layout = layout
-        overlayView?.showWeightStatus = true
-        overlayView?.needsDisplay = true
+        presenter.updateLayout(layout)
+        presenter.showWeightStatus()
     }
 
     private func handleResetWeights() {
@@ -359,9 +311,8 @@ public class HUDController: InputHandler {
         layout.rowWeights = nil
         editedLayout = layout
         weightsDirty = true
-        overlayView?.layout = layout
-        overlayView?.showWeightStatus = true
-        overlayView?.needsDisplay = true
+        presenter.updateLayout(layout)
+        presenter.showWeightStatus()
     }
 
     private func commitWeightsIfNeeded() {
@@ -403,15 +354,15 @@ public class HUDController: InputHandler {
     private func updateHighlight() {
         switch selectionStage {
         case .choosingAnchor:
-            overlayView?.highlightedRegion = HighlightRegion(
+            presenter.updateHighlight(HighlightRegion(
                 minCol: cursorCol, minRow: cursorRow,
                 maxCol: cursorCol, maxRow: cursorRow
-            )
+            ))
         case .expanding:
-            overlayView?.highlightedRegion = HighlightRegion(
+            presenter.updateHighlight(HighlightRegion(
                 minCol: min(anchorCol, extentCol), minRow: min(anchorRow, extentRow),
                 maxCol: max(anchorCol, extentCol), maxRow: max(anchorRow, extentRow)
-            )
+            ))
         }
     }
 
@@ -422,11 +373,11 @@ public class HUDController: InputHandler {
         for child in children {
             reachable[child.cellIndex] = child.label
         }
-        overlayView?.prefixReachableCells = reachable
+        presenter.enterPrefixMode(reachableCells: reachable)
     }
 
     private func exitPrefixMode() {
-        overlayView?.prefixReachableCells = nil
+        presenter.exitPrefixMode()
     }
 
     /// Shows the HUD directly in prefix mode (called from HotkeyManager when a prefix key fires on the fast path).

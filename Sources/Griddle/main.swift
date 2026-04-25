@@ -18,7 +18,7 @@ let displaySystem = RealDisplaySystem()
 let configStore = ConfigStore()
 let inputSource = RealInputSource(modifierKeys: configStore.config.modifier.keys)
 let hotkeyManager = HotkeyManager(config: configStore.config, displaySystem: displaySystem, inputSource: inputSource)
-let hudController = HUDController(config: configStore.config, displaySystem: displaySystem, inputSource: inputSource)
+let hudController = HUDController(config: configStore.config, displaySystem: displaySystem, inputSource: inputSource, presenter: PanelHUDPresenter())
 hotkeyManager.hudController = hudController
 hudController.onLayoutEdited = { layout in
     configStore.updateLayout(layout)
