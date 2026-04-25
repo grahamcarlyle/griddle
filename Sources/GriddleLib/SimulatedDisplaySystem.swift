@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// A simulated window for use in demos and tests.
