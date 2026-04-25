@@ -4,11 +4,14 @@ on: [push]
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-15
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Run tests
+        run: swift test
 
       - name: Build app bundle
         run: ./build.sh
