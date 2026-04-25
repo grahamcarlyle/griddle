@@ -52,6 +52,8 @@ class DemoController {
             runSequence(sequence, screen: screen)
         }
 
+        renderSettingsScreenshot()
+
         NSLog("GriddleDemo: All sequences complete — output in \(outputDir)")
     }
 
@@ -177,6 +179,33 @@ class DemoController {
     private func removeOverlay() {
         overlayView?.removeFromSuperview()
         overlayView = nil
+    }
+
+    // MARK: - Settings Screenshot
+
+    private func renderSettingsScreenshot() {
+        let configStore = ConfigStore(config: config)
+        let inputSource = ScriptedInputSource()
+        let hotkeyManager = HotkeyManager(config: config, displaySystem: displaySystem, inputSource: inputSource)
+
+        let settingsView = SettingsView(configStore: configStore, hotkeyManager: hotkeyManager, screens: displaySystem.screens)
+        let hostingView = NSHostingView(rootView: settingsView)
+
+        // Size the view to its intrinsic content size
+        let fittingSize = hostingView.fittingSize
+        hostingView.frame = NSRect(origin: .zero, size: fittingSize)
+
+        // Force layout
+        hostingView.layoutSubtreeIfNeeded()
+
+        if let image = renderViewToBitmap(hostingView) {
+            savePNG(image: image, to: "\(outputDir)/settings.png")
+            // Also save as a frame for snapshot testing
+            let framesDir = "\(outputDir)/frames"
+            try? FileManager.default.createDirectory(atPath: framesDir, withIntermediateDirectories: true)
+            savePNG(image: image, to: "\(framesDir)/settings-0.png")
+            NSLog("GriddleDemo: settings.png")
+        }
     }
 
     // MARK: - Bitmap Rendering

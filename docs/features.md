@@ -31,3 +31,9 @@ While in the expanding selection, press Shift+arrow keys to adjust column and ro
 Choose from five colour themes in the settings: System (default), Green, Purple, Orange, and High Contrast.
 
 ![HUD themes](../screenshots/themes.png)
+
+## Settings
+
+All settings are available from the menu bar icon. Choose grid layouts, modifier keys, key style, HUD theme, and manage custom layouts with proportions sliders.
+
+![Settings](../screenshots/settings.png)

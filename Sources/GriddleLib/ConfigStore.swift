@@ -12,6 +12,11 @@ public class ConfigStore: ObservableObject {
         sortLayouts()
     }
 
+    /// Creates a ConfigStore with a specific config (no file I/O).
+    public init(config: GriddleConfig) {
+        self.config = config
+    }
+
     public var activeLayout: GridLayout? {
         config.layouts.first(where: { $0.id == config.activeLayoutID })
     }
