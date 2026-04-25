@@ -7,11 +7,13 @@ public class StatusBarController: NSObject {
     private var popover: NSPopover!
     private var configStore: ConfigStore
     private var hotkeyManager: HotkeyManager
+    private var displaySystem: DisplaySystem
     private var clickMonitor: Any?
 
-    public init(configStore: ConfigStore, hotkeyManager: HotkeyManager) {
+    public init(configStore: ConfigStore, hotkeyManager: HotkeyManager, displaySystem: DisplaySystem) {
         self.configStore = configStore
         self.hotkeyManager = hotkeyManager
+        self.displaySystem = displaySystem
         super.init()
         setupStatusItem()
         setupPopover()
@@ -30,7 +32,7 @@ public class StatusBarController: NSObject {
         popover = NSPopover()
         popover.behavior = .transient
         let hostingController = NSHostingController(
-            rootView: SettingsView(configStore: configStore, hotkeyManager: hotkeyManager)
+            rootView: SettingsView(configStore: configStore, hotkeyManager: hotkeyManager, screens: displaySystem.screens)
         )
         hostingController.sizingOptions = [.preferredContentSize]
         popover.contentSize = NSSize(width: 340, height: 520)

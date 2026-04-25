@@ -1,17 +1,16 @@
 import Cocoa
 
 /// Manages the HUD grid overlay: tap-toggle activation, two-stage cell selection.
-public class HUDController {
+public class HUDController: InputHandler {
     private var config: GriddleConfig
+    private let displaySystem: DisplaySystem
+    private let inputSource: InputSource
     private var panel: NSPanel?
     private var overlayView: HUDOverlayView?
     public private(set) var isHUDVisible = false
-    private var modifiersTapped = false
-    private var flagsMonitor: Any?
-    private var eventTap: CFMachPort?
-    private var runLoopSource: CFRunLoopSource?
     private var activeLayout: GridLayout?
     private var activeKeyMap: KeyMap?
+    private var activeScreen: ScreenInfo?
 
     // Prefix key state
     private struct PrefixState {
@@ -19,7 +18,6 @@ public class HUDController {
         let children: [KeyChild]
     }
     private var prefixState: PrefixState?
-
 
     // Selection state
     private enum SelectionStage { case choosingAnchor, expanding }
@@ -45,8 +43,10 @@ public class HUDController {
     private static let arrowRight: UInt16 = 124
     private static let zeroKeyCode: UInt16 = 29
 
-    public init(config: GriddleConfig) {
+    public init(config: GriddleConfig, displaySystem: DisplaySystem, inputSource: InputSource) {
         self.config = config
+        self.displaySystem = displaySystem
+        self.inputSource = inputSource
     }
 
     public func update(config: GriddleConfig) {
@@ -56,33 +56,71 @@ public class HUDController {
         }
     }
 
-    // MARK: - Modifier Watch (tap-toggle)
+    // MARK: - InputHandler
 
-    public func startModifierWatch() {
-        flagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
-            self?.handleFlagsChanged(event)
+    public func handleModifierTap() {
+        if isHUDVisible {
+            dismissHUD()
+        } else {
+            showHUD()
         }
     }
 
-    private func handleFlagsChanged(_ event: NSEvent) {
-        let requiredFlags = HotkeyManager.nsModifierFlags(from: config.modifier.keys)
-        let currentFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        let modifiersHeld = currentFlags.contains(requiredFlags)
+    @discardableResult
+    public func handleKeyDown(keyCode: UInt16, shiftHeld: Bool) -> Bool {
+        guard isHUDVisible else { return false }
 
-        if modifiersHeld {
-            modifiersTapped = true
-        } else if modifiersTapped {
-            modifiersTapped = false
-            if isHUDVisible {
-                dismissHUD()
+        if keyCode == Self.escapeKeyCode {
+            dismissHUD()
+            return true
+        }
+
+        if keyCode == Self.returnKeyCode {
+            handleReturn()
+            return true
+        }
+
+        if keyCode == Self.arrowUp || keyCode == Self.arrowDown || keyCode == Self.arrowLeft || keyCode == Self.arrowRight {
+            if shiftHeld {
+                handleShiftArrowKey(keyCode: keyCode)
             } else {
-                showHUD()
+                handleArrowKey(keyCode: keyCode)
+            }
+            return true
+        }
+
+        // Shift+0 resets weights
+        if keyCode == Self.zeroKeyCode && shiftHeld {
+            handleResetWeights()
+            return true
+        }
+
+        // Prefix state: check if this key resolves a pending prefix
+        if let prefix = prefixState {
+            prefixState = nil
+            if let child = prefix.children.first(where: { $0.keyCode == keyCode }) {
+                exitPrefixMode()
+                handleCellSelected(index: child.cellIndex)
+                return true
+            }
+            // Not a valid child — clear prefix mode and fall through to handle as new top-level key
+            exitPrefixMode()
+        }
+
+        // Top-level key lookup via KeyMap
+        if let keyMap = activeKeyMap, let binding = keyMap.bindings[keyCode] {
+            switch binding {
+            case .direct(let cellIndex):
+                handleCellSelected(index: cellIndex)
+                return true
+            case .prefix(let children):
+                prefixState = PrefixState(prefixKeyCode: keyCode, children: children)
+                enterPrefixMode(children: children)
+                return true
             }
         }
-    }
 
-    public func cancelShowHUD() {
-        modifiersTapped = false
+        return false
     }
 
     // MARK: - Show/Dismiss HUD
@@ -91,14 +129,13 @@ public class HUDController {
         guard !isHUDVisible else { return }
 
         // In native full-screen, tiling can't work — show a brief message instead
-        if WindowMover.isFocusedWindowFullScreen() {
+        if displaySystem.isFocusedWindowFullScreen() {
             showDisabledHUD(message: "Exit full screen to tile")
             return
         }
 
-        guard let screen = WindowMover.screenForFocusedWindow() ?? NSScreen.main else { return }
-        let screenKey = GriddleConfig.screenKey(for: screen)
-        guard let layout = config.layoutForScreen(key: screenKey) else { return }
+        guard let screen = displaySystem.screenForFocusedWindow() ?? displaySystem.mainScreen else { return }
+        guard let layout = config.layoutForScreen(key: screen.id) else { return }
 
         let screenFrame = screen.visibleFrame
         let keyMap = KeyMap.build(for: config.keyStyle, columns: layout.columns, rows: layout.rows)
@@ -129,18 +166,20 @@ public class HUDController {
         self.overlayView = overlayView
         self.isHUDVisible = true
         self.activeKeyMap = keyMap
+        self.activeScreen = screen
         self.selectionStage = .choosingAnchor
         self.cursorRevealed = false
         self.cursorCol = 0
         self.cursorRow = 0
+        self.activeLayout = layout
         self.editedLayout = layout
         self.weightsDirty = false
 
-        installEventTap(layout: layout)
+        inputSource.start(handler: self)
     }
 
     private func showDisabledHUD(message: String) {
-        guard let screen = NSScreen.main else { return }
+        guard let screen = displaySystem.mainScreen else { return }
         let screenFrame = screen.frame
 
         let panel = NSPanel(
@@ -177,7 +216,8 @@ public class HUDController {
         selectionStage = .choosingAnchor
         editedLayout = nil
         weightsDirty = false
-        removeEventTap()
+        activeScreen = nil
+        inputSource.stop()
         panel?.orderOut(nil)
         panel = nil
         overlayView = nil
@@ -205,7 +245,10 @@ public class HUDController {
             let target = WindowMover.boundingCell(from: anchor, to: cell)
             let resolvedLayout = editedLayout ?? layout
             commitWeightsIfNeeded()
-            WindowMover.moveFocusedWindow(to: target, in: resolvedLayout)
+            if let screen = activeScreen {
+                let frame = WindowMover.frame(for: target, in: resolvedLayout, on: screen)
+                displaySystem.moveFocusedWindow(to: frame)
+            }
             dismissHUD()
         }
     }
@@ -350,7 +393,10 @@ public class HUDController {
         let target = WindowMover.boundingCell(from: anchor, to: extent)
         let resolvedLayout = editedLayout ?? layout
         commitWeightsIfNeeded()
-        WindowMover.moveFocusedWindow(to: target, in: resolvedLayout)
+        if let screen = activeScreen {
+            let frame = WindowMover.frame(for: target, in: resolvedLayout, on: screen)
+            displaySystem.moveFocusedWindow(to: frame)
+        }
         dismissHUD()
     }
 
@@ -391,112 +437,4 @@ public class HUDController {
         enterPrefixMode(children: children)
     }
 
-    // MARK: - CGEvent Tap (key suppression)
-
-    private func installEventTap(layout: GridLayout) {
-        self.activeLayout = layout
-
-        let eventMask = (1 << CGEventType.keyDown.rawValue)
-        guard let tap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
-            place: .headInsertEventTap,
-            options: .defaultTap,
-            eventsOfInterest: CGEventMask(eventMask),
-            callback: HUDController.eventTapCallback,
-            userInfo: Unmanaged.passUnretained(self).toOpaque()
-        ) else { return }
-
-        self.eventTap = tap
-        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-        self.runLoopSource = source
-        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
-    }
-
-    private static let eventTapCallback: CGEventTapCallBack = { (proxy, type, event, refcon) -> Unmanaged<CGEvent>? in
-        guard let refcon = refcon else { return Unmanaged.passRetained(event) }
-        let controller = Unmanaged<HUDController>.fromOpaque(refcon).takeUnretainedValue()
-
-        guard type == .keyDown else {
-            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-                if let tap = controller.eventTap {
-                    CGEvent.tapEnable(tap: tap, enable: true)
-                }
-            }
-            return Unmanaged.passRetained(event)
-        }
-
-        let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
-
-        if keyCode == escapeKeyCode {
-            DispatchQueue.main.async { controller.dismissHUD() }
-            return nil
-        }
-
-        if keyCode == returnKeyCode {
-            DispatchQueue.main.async { controller.handleReturn() }
-            return nil
-        }
-
-        if keyCode == arrowUp || keyCode == arrowDown || keyCode == arrowLeft || keyCode == arrowRight {
-            let flags = CGEventFlags(rawValue: event.flags.rawValue & CGEventFlags.maskShift.rawValue)
-            if flags.contains(.maskShift) {
-                DispatchQueue.main.async { controller.handleShiftArrowKey(keyCode: keyCode) }
-            } else {
-                DispatchQueue.main.async { controller.handleArrowKey(keyCode: keyCode) }
-            }
-            return nil
-        }
-
-        // Shift+0 resets weights
-        if keyCode == zeroKeyCode {
-            let flags = CGEventFlags(rawValue: event.flags.rawValue & CGEventFlags.maskShift.rawValue)
-            if flags.contains(.maskShift) {
-                DispatchQueue.main.async { controller.handleResetWeights() }
-                return nil
-            }
-        }
-
-        // Prefix state: check if this key resolves a pending prefix
-        if let prefix = controller.prefixState {
-            controller.prefixState = nil
-            if let child = prefix.children.first(where: { $0.keyCode == keyCode }) {
-                DispatchQueue.main.async {
-                    controller.exitPrefixMode()
-                    controller.handleCellSelected(index: child.cellIndex)
-                }
-                return nil
-            }
-            // Not a valid child — clear prefix mode and fall through to handle as new top-level key
-            DispatchQueue.main.async { controller.exitPrefixMode() }
-        }
-
-        // Top-level key lookup via KeyMap
-        if let keyMap = controller.activeKeyMap, let binding = keyMap.bindings[keyCode] {
-            switch binding {
-            case .direct(let cellIndex):
-                DispatchQueue.main.async {
-                    controller.handleCellSelected(index: cellIndex)
-                }
-                return nil
-            case .prefix(let children):
-                controller.prefixState = PrefixState(prefixKeyCode: keyCode, children: children)
-                DispatchQueue.main.async { controller.enterPrefixMode(children: children) }
-                return nil
-            }
-        }
-
-        return Unmanaged.passRetained(event)
-    }
-
-    private func removeEventTap() {
-        if let source = runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
-        }
-        if let tap = eventTap {
-            CGEvent.tapEnable(tap: tap, enable: false)
-        }
-        eventTap = nil
-        runLoopSource = nil
-    }
 }

@@ -1,9 +1,16 @@
 import SwiftUI
 import ServiceManagement
 
-struct SettingsView: View {
+public struct SettingsView: View {
     @ObservedObject var configStore: ConfigStore
     var hotkeyManager: HotkeyManager
+    var screens: [ScreenInfo]
+
+    public init(configStore: ConfigStore, hotkeyManager: HotkeyManager, screens: [ScreenInfo]) {
+        self.configStore = configStore
+        self.hotkeyManager = hotkeyManager
+        self.screens = screens
+    }
 
     @State private var newCols = 3
     @State private var newRows = 2
@@ -11,7 +18,7 @@ struct SettingsView: View {
     @State private var editingLayoutID: String?
     @State private var editingName: String = ""
 
-    var body: some View {
+    public var body: some View {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Griddle")
                     .font(.headline)
@@ -329,12 +336,10 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var screenLayoutRows: some View {
-        let screens = NSScreen.screens
         if screens.count > 1 {
-            ForEach(screens, id: \.self) { screen in
-                let key = GriddleConfig.screenKey(for: screen)
-                let screenLayouts = configStore.config.layoutsForScreen(key: key)
-                let hasCustomPool = configStore.config.screenLayoutPools[key] != nil
+            ForEach(screens) { screen in
+                let screenLayouts = configStore.config.layoutsForScreen(key: screen.id)
+                let hasCustomPool = configStore.config.screenLayoutPools[screen.id] != nil
 
                 DisclosureGroup {
                     let useAll = Binding(
@@ -344,7 +349,6 @@ struct SettingsView: View {
                                 configStore.clearScreenLayoutPool(screen: screen)
                                 configStore.removeScreenLayout(screen: screen)
                             } else {
-                                // Initialize custom pool with all layouts
                                 configStore.setScreenLayoutPool(screen: screen, layoutIDs: configStore.config.layouts.map(\.id))
                             }
                             hotkeyManager.update(config: configStore.config)
@@ -356,26 +360,23 @@ struct SettingsView: View {
                         ForEach(configStore.config.layouts) { layout in
                             Toggle(layout.name, isOn: Binding(
                                 get: {
-                                    configStore.config.screenLayoutPools[key]?.contains(layout.id) ?? true
+                                    configStore.config.screenLayoutPools[screen.id]?.contains(layout.id) ?? true
                                 },
                                 set: { isOn in
-                                    var pool = configStore.config.screenLayoutPools[key] ?? configStore.config.layouts.map(\.id)
+                                    var pool = configStore.config.screenLayoutPools[screen.id] ?? configStore.config.layouts.map(\.id)
                                     if isOn {
                                         if !pool.contains(layout.id) { pool.append(layout.id) }
                                     } else {
                                         pool.removeAll { $0 == layout.id }
                                     }
-                                    // If all selected, revert to shared pool
                                     if Set(pool) == Set(configStore.config.layouts.map(\.id)) {
                                         configStore.clearScreenLayoutPool(screen: screen)
                                         configStore.removeScreenLayout(screen: screen)
                                     } else if pool.isEmpty {
-                                        // Don't allow empty pool — keep at least one
                                         return
                                     } else {
                                         configStore.setScreenLayoutPool(screen: screen, layoutIDs: pool)
-                                        // If current screen layout is no longer in pool, switch to first
-                                        if let current = configStore.config.screenLayouts[key],
+                                        if let current = configStore.config.screenLayouts[screen.id],
                                            !pool.contains(current) {
                                             configStore.setScreenLayout(screen: screen, layoutID: pool.first!)
                                         }
@@ -391,7 +392,7 @@ struct SettingsView: View {
                         Spacer()
                         Picker("", selection: Binding(
                             get: {
-                                configStore.config.screenLayouts[key] ?? ""
+                                configStore.config.screenLayouts[screen.id] ?? ""
                             },
                             set: { id in
                                 if id.isEmpty {

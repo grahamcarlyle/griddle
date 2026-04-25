@@ -5,6 +5,8 @@ import Carbon
 /// Maps keyboard shortcuts to grid cells and registers global hotkeys.
 public class HotkeyManager {
     private var config: GriddleConfig
+    private let displaySystem: DisplaySystem
+    private var inputSource: InputSource
     private var eventHandlerRef: EventHandlerRef?
     private var hotKeyRefs: [EventHotKeyRef?] = []
     private var hotKeyIDToKeyCode: [UInt32: UInt16] = [:]  // hotKeyID -> keyCode
@@ -21,9 +23,10 @@ public class HotkeyManager {
     }
     private var prefixState: PrefixState?
 
-
-    public init(config: GriddleConfig) {
+    public init(config: GriddleConfig, displaySystem: DisplaySystem, inputSource: InputSource) {
         self.config = config
+        self.displaySystem = displaySystem
+        self.inputSource = inputSource
     }
 
     public func update(config: GriddleConfig) {
@@ -130,7 +133,7 @@ public class HotkeyManager {
         case .prefix(let children):
             // Enter prefix state and auto-show HUD for visual feedback
             prefixState = PrefixState(children: children)
-            hudController?.cancelShowHUD()
+            inputSource.cancelModifierTap()
             hudController?.showHUDInPrefixMode(children: children)
             return noErr
         }
@@ -138,15 +141,18 @@ public class HotkeyManager {
 
     private func moveWindowToCell(index cellIndex: Int) -> OSStatus {
         // Resolve layout for the focused window's screen
-        let screenKey = WindowMover.screenForFocusedWindow().map { GriddleConfig.screenKey(for: $0) }
+        let screenKey = displaySystem.screenForFocusedWindow()?.id
         guard let layout = config.layoutForScreen(key: screenKey ?? "") else { return noErr }
 
         // Ignore if this cell index doesn't exist in the screen's layout
         guard cellIndex < layout.cells.count else { return noErr }
         let cell = layout.cells[cellIndex]
 
-        hudController?.cancelShowHUD()
-        WindowMover.moveFocusedWindow(to: cell, in: layout)
+        inputSource.cancelModifierTap()
+        if let screen = displaySystem.screenForFocusedWindow() {
+            let frame = WindowMover.frame(for: cell, in: layout, on: screen)
+            displaySystem.moveFocusedWindow(to: frame)
+        }
         return noErr
     }
 

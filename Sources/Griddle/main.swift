@@ -14,27 +14,30 @@ func checkAccessibilityPermission() -> Bool {
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)  // Run as background app (no Dock icon)
 
+let displaySystem = RealDisplaySystem()
 let configStore = ConfigStore()
-let hotkeyManager = HotkeyManager(config: configStore.config)
-let hudController = HUDController(config: configStore.config)
+let inputSource = RealInputSource(modifierKeys: configStore.config.modifier.keys)
+let hotkeyManager = HotkeyManager(config: configStore.config, displaySystem: displaySystem, inputSource: inputSource)
+let hudController = HUDController(config: configStore.config, displaySystem: displaySystem, inputSource: inputSource)
 hotkeyManager.hudController = hudController
 hudController.onLayoutEdited = { layout in
     configStore.updateLayout(layout)
     hotkeyManager.update(config: configStore.config)
 }
 hotkeyManager.onLayoutCycle = {
-    let screen = WindowMover.screenForFocusedWindow()
+    let screen = displaySystem.screenForFocusedWindow()
     if hudController.isHUDVisible {
         configStore.cycleLayout(on: screen)
     }
     hudController.showHUD()
-    hudController.cancelShowHUD()  // Prevent modifier release from dismissing the HUD
+    inputSource.cancelModifierTap()  // Prevent modifier release from dismissing the HUD
 }
 
 // Register hotkeys and update HUD on config changes (including initial setup)
 var cancellable = configStore.$config.sink { newConfig in
     hotkeyManager.update(config: newConfig)
     hudController.update(config: newConfig)
+    inputSource.update(modifierKeys: newConfig.modifier.keys)
 }
 
 // Check accessibility permission, polling until granted or user quits
@@ -55,9 +58,9 @@ while !checkAccessibilityPermission() {
     }
 }
 
-hudController.startModifierWatch()
+inputSource.startModifierWatch()
 
 // Set up status bar
-let statusBarController = StatusBarController(configStore: configStore, hotkeyManager: hotkeyManager)
+let statusBarController = StatusBarController(configStore: configStore, hotkeyManager: hotkeyManager, displaySystem: displaySystem)
 
 app.run()

@@ -1,5 +1,4 @@
 import Foundation
-import Cocoa
 
 /// Represents a single cell in the grid, defined by its column and row span.
 public struct GridCell: Codable, Equatable {
@@ -232,17 +231,6 @@ public struct GriddleConfig: Codable {
             ],
             modifier: ModifierConfig(keys: ["ctrl", "alt"])
         )
-    }
-}
-
-// MARK: - Screen identification
-
-extension GriddleConfig {
-    /// Generates a stable key for a screen based on its name and position.
-    public static func screenKey(for screen: NSScreen) -> String {
-        let name = screen.localizedName
-        let origin = screen.frame.origin
-        return "\(name) @ \(Int(origin.x)),\(Int(origin.y))"
     }
 }
 

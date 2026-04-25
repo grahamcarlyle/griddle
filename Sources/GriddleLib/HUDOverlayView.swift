@@ -1,30 +1,37 @@
 import Cocoa
 
 /// A rectangular region of grid cells to highlight.
-struct HighlightRegion: Equatable {
-    var minCol: Int
-    var minRow: Int
-    var maxCol: Int
-    var maxRow: Int
+public struct HighlightRegion: Equatable {
+    public var minCol: Int
+    public var minRow: Int
+    public var maxCol: Int
+    public var maxRow: Int
 
-    func contains(col: Int, row: Int) -> Bool {
+    public init(minCol: Int, minRow: Int, maxCol: Int, maxRow: Int) {
+        self.minCol = minCol
+        self.minRow = minRow
+        self.maxCol = maxCol
+        self.maxRow = maxRow
+    }
+
+    public func contains(col: Int, row: Int) -> Bool {
         col >= minCol && col <= maxCol && row >= minRow && row <= maxRow
     }
 }
 
 /// Draws a grid overlay with themed cells for the HUD.
-class HUDOverlayView: NSView {
-    var layout: GridLayout?
-    var keyLabels: [String]?
-    var theme: HUDTheme = .system
-    var highlightedRegion: HighlightRegion? { didSet { needsDisplay = true } }
+public class HUDOverlayView: NSView {
+    public var layout: GridLayout?
+    public var keyLabels: [String]?
+    public var theme: HUDTheme = .system
+    public var highlightedRegion: HighlightRegion? { didSet { needsDisplay = true } }
 
     /// When set, only these cell indices are reachable (prefix mode).
     /// Cells not in this set are dimmed. Each entry maps cellIndex → child key label.
-    var prefixReachableCells: [Int: String]? { didSet { needsDisplay = true } }
+    public var prefixReachableCells: [Int: String]? { didSet { needsDisplay = true } }
 
     /// When true, shows weight percentages as a status strip.
-    var showWeightStatus: Bool = false { didSet { needsDisplay = true } }
+    public var showWeightStatus: Bool = false { didSet { needsDisplay = true } }
 
     private func themeColors() -> (cellColor: NSColor, bgAlpha: CGFloat) {
         switch theme {
@@ -42,9 +49,9 @@ class HUDOverlayView: NSView {
     }
 
     /// When set, shows a centered message instead of the grid.
-    var disabledMessage: String? { didSet { needsDisplay = true } }
+    public var disabledMessage: String? { didSet { needsDisplay = true } }
 
-    override func draw(_ dirtyRect: NSRect) {
+    override public func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         let bounds = self.bounds
         let colors = themeColors()

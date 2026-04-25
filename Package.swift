@@ -16,6 +16,11 @@ let package = Package(
             dependencies: ["GriddleLib"],
             path: "Sources/Griddle"
         ),
+        .executableTarget(
+            name: "GriddleDemo",
+            dependencies: ["GriddleLib"],
+            path: "Sources/GriddleDemo"
+        ),
         .testTarget(
             name: "GriddleTests",
             dependencies: ["GriddleLib"],

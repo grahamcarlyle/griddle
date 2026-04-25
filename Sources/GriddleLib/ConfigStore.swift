@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import Cocoa
 
 /// Observable wrapper around GriddleConfig that persists changes automatically.
 public class ConfigStore: ObservableObject {
@@ -45,35 +44,29 @@ public class ConfigStore: ObservableObject {
     }
 
     /// Resolves the layout for a specific screen, falling back to the global default.
-    public func layout(for screen: NSScreen) -> GridLayout? {
-        let key = GriddleConfig.screenKey(for: screen)
-        return config.layoutForScreen(key: key)
+    public func layout(for screen: ScreenInfo) -> GridLayout? {
+        config.layoutForScreen(key: screen.id)
     }
 
-    public func setScreenLayout(screen: NSScreen, layoutID: String) {
-        let key = GriddleConfig.screenKey(for: screen)
-        config.screenLayouts[key] = layoutID
+    public func setScreenLayout(screen: ScreenInfo, layoutID: String) {
+        config.screenLayouts[screen.id] = layoutID
     }
 
-    public func removeScreenLayout(screen: NSScreen) {
-        let key = GriddleConfig.screenKey(for: screen)
-        config.screenLayouts.removeValue(forKey: key)
+    public func removeScreenLayout(screen: ScreenInfo) {
+        config.screenLayouts.removeValue(forKey: screen.id)
     }
 
     /// Returns the layouts available for a specific screen (pool-filtered or all).
-    public func layoutsForScreen(_ screen: NSScreen) -> [GridLayout] {
-        let key = GriddleConfig.screenKey(for: screen)
-        return config.layoutsForScreen(key: key)
+    public func layoutsForScreen(_ screen: ScreenInfo) -> [GridLayout] {
+        config.layoutsForScreen(key: screen.id)
     }
 
-    public func setScreenLayoutPool(screen: NSScreen, layoutIDs: [String]) {
-        let key = GriddleConfig.screenKey(for: screen)
-        config.screenLayoutPools[key] = layoutIDs
+    public func setScreenLayoutPool(screen: ScreenInfo, layoutIDs: [String]) {
+        config.screenLayoutPools[screen.id] = layoutIDs
     }
 
-    public func clearScreenLayoutPool(screen: NSScreen) {
-        let key = GriddleConfig.screenKey(for: screen)
-        config.screenLayoutPools.removeValue(forKey: key)
+    public func clearScreenLayoutPool(screen: ScreenInfo) {
+        config.screenLayoutPools.removeValue(forKey: screen.id)
     }
 
     public func updateLayout(_ layout: GridLayout) {
@@ -113,14 +106,13 @@ public class ConfigStore: ObservableObject {
         config.layouts[li].rowWeights = nil
     }
 
-    public func cycleLayout(on screen: NSScreen? = nil) {
+    public func cycleLayout(on screen: ScreenInfo? = nil) {
         let pool: [GridLayout]
         let currentID: String
 
         if let screen = screen {
-            let key = GriddleConfig.screenKey(for: screen)
-            pool = config.layoutsForScreen(key: key)
-            currentID = config.screenLayouts[key] ?? config.activeLayoutID
+            pool = config.layoutsForScreen(key: screen.id)
+            currentID = config.screenLayouts[screen.id] ?? config.activeLayoutID
         } else {
             pool = config.layouts
             currentID = config.activeLayoutID
@@ -131,8 +123,7 @@ public class ConfigStore: ObservableObject {
         let nextID = pool[(currentIndex + 1) % pool.count].id
 
         if let screen = screen {
-            let key = GriddleConfig.screenKey(for: screen)
-            config.screenLayouts[key] = nextID
+            config.screenLayouts[screen.id] = nextID
         } else {
             config.activeLayoutID = nextID
         }
