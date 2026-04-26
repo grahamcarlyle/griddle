@@ -10,4 +10,5 @@ public class NullHUDPresenter: HUDPresenter {
     public func showWeightStatus() {}
     public func enterPrefixMode(reachableCells: [Int: String]) {}
     public func exitPrefixMode() {}
+    public func showLayoutNameBanner(_ name: String) {}
 }

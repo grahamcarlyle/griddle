@@ -10,4 +10,5 @@ public protocol HUDPresenter {
     func showWeightStatus()
     func enterPrefixMode(reachableCells: [Int: String])
     func exitPrefixMode()
+    func showLayoutNameBanner(_ name: String)
 }

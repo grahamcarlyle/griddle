@@ -31,7 +31,23 @@ public class HUDOverlayView: NSView {
     public var prefixReachableCells: [Int: String]? { didSet { needsDisplay = true } }
 
     /// When true, shows weight percentages as a status strip.
-    public var showWeightStatus: Bool = false { didSet { needsDisplay = true } }
+    public var showWeightStatus: Bool = false {
+        didSet {
+            needsDisplay = true
+            repositionNameBanner()
+        }
+    }
+
+    private var nameBanner: NSView?
+    private var nameBannerLabel: NSTextField?
+    private var nameBannerDimWorkItem: DispatchWorkItem?
+    private static let nameBannerDimAlpha: CGFloat = 0.3
+    /// Distance from the top of the overlay to the top of the banner pill when shown alone.
+    /// Matches the weight-status pill's top inset so the two share a y-axis when only one is visible.
+    private static let nameBannerTopInset: CGFloat = 12
+    /// Approximate height of the weight-status pill (~22 pt 18pt-medium text + 12 pt vertical padding).
+    private static let weightStatusPillHeight: CGFloat = 34
+    private static let nameBannerStackGap: CGFloat = 8
 
     private func themeColors() -> (cellColor: NSColor, bgAlpha: CGFloat) {
         switch theme {
@@ -169,5 +185,82 @@ public class HUDOverlayView: NSView {
                 withAttributes: statusAttrs
             )
         }
+    }
+
+    public func showLayoutNameBanner(_ name: String) {
+        let banner: NSView
+        let label: NSTextField
+        if let existing = nameBanner, let existingLabel = nameBannerLabel {
+            banner = existing
+            label = existingLabel
+        } else {
+            banner = NSView(frame: .zero)
+            banner.wantsLayer = true
+            banner.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.6).cgColor
+            banner.layer?.cornerRadius = 8
+
+            label = NSTextField(labelWithString: name)
+            label.font = NSFont.systemFont(ofSize: 18, weight: .medium)
+            label.textColor = NSColor.white.withAlphaComponent(0.95)
+            label.backgroundColor = .clear
+            label.isBezeled = false
+            label.isEditable = false
+            label.isSelectable = false
+            banner.addSubview(label)
+
+            addSubview(banner)
+            self.nameBanner = banner
+            self.nameBannerLabel = label
+        }
+
+        label.stringValue = name
+        label.sizeToFit()
+
+        let horizontalPadding: CGFloat = 16
+        let verticalPadding: CGFloat = 6
+        let bannerWidth = label.frame.width + horizontalPadding * 2
+        let bannerHeight = label.frame.height + verticalPadding * 2
+
+        banner.frame = NSRect(
+            x: bounds.midX - bannerWidth / 2,
+            y: 0,
+            width: bannerWidth,
+            height: bannerHeight
+        )
+        label.frame = NSRect(
+            x: horizontalPadding,
+            y: verticalPadding,
+            width: label.frame.width,
+            height: label.frame.height
+        )
+        repositionNameBanner()
+
+        nameBannerDimWorkItem?.cancel()
+        banner.layer?.removeAllAnimations()
+        banner.alphaValue = 1.0
+
+        let workItem = DispatchWorkItem { [weak self, weak banner] in
+            guard let banner = banner else { return }
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.6
+                banner.animator().alphaValue = HUDOverlayView.nameBannerDimAlpha
+            }
+            self?.nameBannerDimWorkItem = nil
+        }
+        nameBannerDimWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: workItem)
+    }
+
+    private func repositionNameBanner() {
+        guard let banner = nameBanner else { return }
+        let topInset = HUDOverlayView.nameBannerTopInset
+            + (showWeightStatus ? HUDOverlayView.weightStatusPillHeight + HUDOverlayView.nameBannerStackGap : 0)
+        let originY = bounds.maxY - topInset - banner.frame.height
+        banner.frame.origin = NSPoint(x: bounds.midX - banner.frame.width / 2, y: originY)
+    }
+
+    override public func layout() {
+        super.layout()
+        repositionNameBanner()
     }
 }

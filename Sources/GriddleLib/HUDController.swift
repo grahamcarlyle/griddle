@@ -140,6 +140,7 @@ public class HUDController: InputHandler {
         let keyMap = KeyMap.build(for: config.keyStyle, columns: layout.columns, rows: layout.rows)
 
         presenter.showOverlay(on: screen, layout: layout, keyLabels: keyMap.labels, theme: config.hudTheme)
+        presenter.showLayoutNameBanner(layout.displayName)
 
         self.isHUDVisible = true
         self.activeKeyMap = keyMap
