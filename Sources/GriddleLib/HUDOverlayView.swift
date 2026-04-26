@@ -259,8 +259,8 @@ public class HUDOverlayView: NSView {
         banner.frame.origin = NSPoint(x: bounds.midX - banner.frame.width / 2, y: originY)
     }
 
-    override public func layout() {
-        super.layout()
+    override public func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
         repositionNameBanner()
     }
 }
