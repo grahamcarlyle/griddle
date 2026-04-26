@@ -6,10 +6,13 @@ public struct SettingsView: View {
     var hotkeyManager: HotkeyManager
     var screens: [ScreenInfo]
 
-    public init(configStore: ConfigStore, hotkeyManager: HotkeyManager, screens: [ScreenInfo]) {
+    public init(configStore: ConfigStore, hotkeyManager: HotkeyManager, screens: [ScreenInfo],
+                manageLayoutsExpanded: Bool = false, proportionsExpanded: Bool = false) {
         self.configStore = configStore
         self.hotkeyManager = hotkeyManager
         self.screens = screens
+        self._manageLayoutsExpanded = State(initialValue: manageLayoutsExpanded)
+        self._proportionsExpanded = State(initialValue: proportionsExpanded)
     }
 
     @State private var newCols = 3
@@ -17,6 +20,8 @@ public struct SettingsView: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var editingLayoutID: String?
     @State private var editingName: String = ""
+    @State private var manageLayoutsExpanded: Bool
+    @State private var proportionsExpanded: Bool
 
     public var body: some View {
             VStack(alignment: .leading, spacing: 16) {
@@ -45,7 +50,7 @@ public struct SettingsView: View {
 
                         screenLayoutRows
 
-                        DisclosureGroup("Manage Layouts") {
+                        DisclosureGroup("Manage Layouts", isExpanded: $manageLayoutsExpanded) {
                             ScrollView {
                                 VStack(alignment: .leading, spacing: 4) {
                                     ForEach(configStore.config.layouts) { layout in
@@ -149,7 +154,7 @@ public struct SettingsView: View {
                     .frame(height: 100)
 
                     // MARK: - Proportions
-                    DisclosureGroup("Proportions") {
+                    DisclosureGroup("Proportions", isExpanded: $proportionsExpanded) {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Columns")
                                 .font(.caption2)

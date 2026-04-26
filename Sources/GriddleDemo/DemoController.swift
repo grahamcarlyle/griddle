@@ -184,11 +184,25 @@ class DemoController {
     // MARK: - Settings Screenshot
 
     private func renderSettingsScreenshot() {
-        let configStore = ConfigStore(config: config)
-        let inputSource = ScriptedInputSource()
-        let hotkeyManager = HotkeyManager(config: config, displaySystem: displaySystem, inputSource: inputSource)
+        // Set up a config with multiple layouts and custom weights for a richer screenshot
+        var settingsConfig = config
+        var layout3x2 = settingsConfig.layouts.first(where: { $0.id == "3x2" })!
+        layout3x2.columnWeights = [1.5, 1.0, 0.8]
+        layout3x2.rowWeights = [1.2, 1.0]
+        settingsConfig.layouts = settingsConfig.layouts.map { $0.id == "3x2" ? layout3x2 : $0 }
+        settingsConfig.activeLayoutID = "3x2"
 
-        let settingsView = SettingsView(configStore: configStore, hotkeyManager: hotkeyManager, screens: displaySystem.screens)
+        let configStore = ConfigStore(config: settingsConfig)
+        let inputSource = ScriptedInputSource()
+        let hotkeyManager = HotkeyManager(config: settingsConfig, displaySystem: displaySystem, inputSource: inputSource)
+
+        let settingsView = SettingsView(
+            configStore: configStore,
+            hotkeyManager: hotkeyManager,
+            screens: displaySystem.screens,
+            manageLayoutsExpanded: true,
+            proportionsExpanded: true
+        )
         let hostingView = NSHostingView(rootView: settingsView)
 
         // Size the view to its intrinsic content size

@@ -36,4 +36,4 @@ Choose from five colour themes in the settings: System (default), Green, Purple,
 
 All settings are available from the menu bar icon. Choose grid layouts, modifier keys, key style, HUD theme, and manage custom layouts with proportions sliders.
 
-![Settings](../screenshots/settings.png)
+<img src="../screenshots/settings.png" width="320" alt="Settings popover showing layout picker, manage layouts, grid preview, proportions sliders, and hotkey options">
