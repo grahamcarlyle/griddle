@@ -66,6 +66,10 @@ public class PanelHUDPresenter: HUDPresenter {
         overlayView?.prefixReachableCells = nil
     }
 
+    public func showLayoutNameBanner(_ name: String) {
+        overlayView?.showLayoutNameBanner(name)
+    }
+
     private func makePanel(frame: CGRect) -> NSPanel {
         let panel = NSPanel(
             contentRect: frame,
