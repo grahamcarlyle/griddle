@@ -318,6 +318,9 @@ public struct SettingsView: View {
                     }
 
                 HStack {
+                    Text(versionLabel)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                     Spacer()
                     Button("Quit Griddle") {
                         NSApplication.shared.terminate(nil)
@@ -326,6 +329,15 @@ public struct SettingsView: View {
             }
             .padding()
             .frame(width: 320)
+    }
+
+    // MARK: - Version
+
+    private var versionLabel: String {
+        if let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String, !v.isEmpty {
+            return "v\(v)"
+        }
+        return "dev"
     }
 
     // MARK: - Duplicate Detection
