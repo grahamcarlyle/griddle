@@ -201,7 +201,8 @@ class DemoController {
             hotkeyManager: hotkeyManager,
             screens: displaySystem.screens,
             manageLayoutsExpanded: true,
-            proportionsExpanded: true
+            proportionsExpanded: true,
+            hotkeysExpanded: true
         )
         let hostingView = NSHostingView(rootView: settingsView)
 

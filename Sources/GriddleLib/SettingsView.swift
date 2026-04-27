@@ -7,12 +7,14 @@ public struct SettingsView: View {
     var screens: [ScreenInfo]
 
     public init(configStore: ConfigStore, hotkeyManager: HotkeyManager, screens: [ScreenInfo],
-                manageLayoutsExpanded: Bool = false, proportionsExpanded: Bool = false) {
+                manageLayoutsExpanded: Bool = false, proportionsExpanded: Bool = false,
+                hotkeysExpanded: Bool = false) {
         self.configStore = configStore
         self.hotkeyManager = hotkeyManager
         self.screens = screens
         self._manageLayoutsExpanded = State(initialValue: manageLayoutsExpanded)
         self._proportionsExpanded = State(initialValue: proportionsExpanded)
+        self._hotkeysExpanded = State(initialValue: hotkeysExpanded)
     }
 
     @State private var newCols = 3
@@ -22,6 +24,7 @@ public struct SettingsView: View {
     @State private var editingName: String = ""
     @State private var manageLayoutsExpanded: Bool
     @State private var proportionsExpanded: Bool
+    @State private var hotkeysExpanded: Bool
 
     public var body: some View {
             VStack(alignment: .leading, spacing: 16) {
@@ -223,7 +226,7 @@ public struct SettingsView: View {
                 }
 
                 // MARK: - Hotkeys Section
-                GroupBox(label: Label("Hotkeys", systemImage: "keyboard").font(.subheadline.bold())) {
+                DisclosureGroup(isExpanded: $hotkeysExpanded) {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             ForEach(["ctrl", "alt", "cmd", "shift"], id: \.self) { key in
@@ -293,6 +296,8 @@ public struct SettingsView: View {
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
+                } label: {
+                    Label("Hotkeys", systemImage: "keyboard").font(.subheadline.bold())
                 }
 
                 // MARK: - Footer
