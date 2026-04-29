@@ -19,7 +19,8 @@ public class RealInputSource: InputSource {
 
     // MARK: - Modifier Watch
 
-    public func startModifierWatch() {
+    public func startModifierWatch(handler: InputHandler) {
+        self.handler = handler
         flagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             self?.handleFlagsChanged(event)
         }
