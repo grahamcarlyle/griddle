@@ -41,6 +41,24 @@ jobs:
           name: Latest Build
           prerelease: true
           files: Griddle.zip
+          generate_release_notes: true
+          body: |
+            Build ${{ github.run_number }} from commit ${{ github.sha }}.
+
+            **Install:** Download `Griddle.zip`, unzip, and run `./install.sh` — this copies `Griddle.app` to `/Applications` and removes the quarantine flag.
+            You can also pass a custom path: `./install.sh path/to/Griddle.app`
+
+            After granting Accessibility permission, the app will appear as "Griddle (build ${{ github.run_number }})" in System Settings. You can remove old build entries from the Accessibility list.
+
+      - name: Publish versioned release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Build ${{ github.run_number }}
+          prerelease: true
+          files: Griddle.zip
+          generate_release_notes: true
           body: |
             Build ${{ github.run_number }} from commit ${{ github.sha }}.
 
