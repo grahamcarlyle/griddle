@@ -6,7 +6,7 @@
 
 <p align="center">
   Tile your macOS windows with just the keyboard.<br>
-  Tap a hotkey, see a grid, press a letter — done.
+  Tap your modifier keys, see a grid, press a letter — done.
 </p>
 
 <p align="center">
@@ -27,8 +27,8 @@ See the **[visual feature guide](docs/features.md)** for animated demos of each 
 
 ## Highlights
 
-- **Instant tiling** — modifier + letter key moves the focused window to a grid cell
-- **Visual HUD** — tap modifier keys to toggle a grid overlay on screen
+- **Instant tiling (hotkey combo)** — modifier + letter key moves the focused window to a grid cell
+- **Visual HUD (modifier tap)** — tap modifier keys to toggle a grid overlay on screen
 - **Spatial key mapping** — keys match grid positions (Q/W top row, A/S bottom row), or switch to number keys (1–9)
 - **Multi-cell spanning** — press two keys to stretch a window across cells
 - **Arrow key navigation** — use arrow keys and Enter to select cells without memorising key bindings
@@ -43,13 +43,19 @@ See the **[visual feature guide](docs/features.md)** for animated demos of each 
 
 ## How it works
 
-With the default layout (2×2) and modifier keys (Ctrl+Alt):
+Griddle has three ways to trigger an action:
 
-**Quick move:** Press Ctrl+Alt+Q to instantly move the window to the top-left cell.
+- **Modifier tap** — tap and release just the modifier keys to toggle the HUD overlay
+- **Hotkey combo** — modifier + a letter or number key for an instant move (no HUD)
+- **Cycle key** — modifier + Space (configurable) to show the HUD or cycle layouts when the HUD is open
 
-**Cycle layouts:** Press Ctrl+Alt+Space to show the HUD with the current layout. Press again to cycle to the next layout, then select a cell.
+The examples below use the default modifiers (**Ctrl+Alt** on Mac with a US layout) and the 2×2 layout. Substitute your configured modifiers if you've changed them.
 
-**HUD overlay:** Tap and release Ctrl+Alt to toggle a grid overlay on screen. Then:
+**Hotkey combo:** Press Ctrl+Alt+Q to instantly move the window to the top-left cell.
+
+**Cycle key:** Press Ctrl+Alt+Space to show the HUD with the current layout. Press again to cycle to the next layout, then select a cell.
+
+**Modifier tap:** Tap and release Ctrl+Alt to toggle a grid overlay on screen. Then:
 - Press a letter key to move the window to that cell
 - Press two letter keys to span the window across those cells (e.g. Q then S = full screen)
 - Use arrow keys to navigate the grid, then Enter to confirm
