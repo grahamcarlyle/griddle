@@ -275,23 +275,6 @@ public struct SettingsView: View {
                             .labelsHidden()
                         }
 
-                        LabeledContent("Theme") {
-                            Picker("", selection: Binding(
-                                get: { configStore.config.hudTheme },
-                                set: { theme in
-                                    configStore.config.hudTheme = theme
-                                }
-                            )) {
-                                Text("System").tag(HUDTheme.system)
-                                Text("Green").tag(HUDTheme.green)
-                                Text("High Contrast").tag(HUDTheme.highContrast)
-                                Text("Purple").tag(HUDTheme.purple)
-                                Text("Orange").tag(HUDTheme.orange)
-                            }
-                            .pickerStyle(.menu)
-                            .labelsHidden()
-                        }
-
                         Text("Tap modifiers to show grid, or hold modifier + key for instant move")
                             .font(.caption2)
                             .foregroundColor(.secondary)
@@ -301,7 +284,22 @@ public struct SettingsView: View {
                 }
 
                 // MARK: - Footer
-                Spacer()
+                LabeledContent("Theme") {
+                    Picker("", selection: Binding(
+                        get: { configStore.config.hudTheme },
+                        set: { theme in
+                            configStore.config.hudTheme = theme
+                        }
+                    )) {
+                        Text("System").tag(HUDTheme.system)
+                        Text("Green").tag(HUDTheme.green)
+                        Text("High Contrast").tag(HUDTheme.highContrast)
+                        Text("Purple").tag(HUDTheme.purple)
+                        Text("Orange").tag(HUDTheme.orange)
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                }
 
                 Toggle("Launch at Login", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { newValue in
