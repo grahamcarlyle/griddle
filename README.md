@@ -60,7 +60,7 @@ The examples below use the default modifiers (**Ctrl+Alt** on Mac with a US layo
 - Press two letter keys to span the window across those cells (e.g. Q then S = full screen)
 - Use arrow keys to navigate the grid, then Enter to confirm
 - Press two arrows to span across multiple cells (Enter after the first to set the anchor)
-- While spanning, press Shift+arrow to adjust column/row proportions (Shift+0 to reset)
+- Press Shift+arrow to adjust column/row proportions of the highlighted cell (Shift+0 to reset)
 - Press Escape or tap the modifier keys again to dismiss
 
 By default, keys are mapped spatially to match the grid layout:

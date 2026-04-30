@@ -202,6 +202,50 @@ struct HUDControllerTests {
         #expect(editedLayout?.rowWeights == nil)
     }
 
+    @Test("shift+arrow edits weights in choosingAnchor stage")
+    func shiftArrowEditsWeightsInChoosingAnchor() {
+        let (controller, _, _) = makeController()
+        var editedLayout: GridLayout?
+        controller.onLayoutEdited = { layout in
+            editedLayout = layout
+        }
+        controller.handleModifierTap()
+
+        // No anchor selected — directly resize column at the cursor (revealed at 0,0)
+        controller.handleKeyDown(keyCode: arrowRight, shiftHeld: true)
+        // Pick top-left cell twice to commit the move and persist weights
+        let keys = cellKeyCodes(columns: 2, rows: 2)
+        controller.handleKeyDown(keyCode: keys[0], shiftHeld: false)
+        controller.handleKeyDown(keyCode: keys[0], shiftHeld: false)
+
+        #expect(editedLayout != nil)
+        #expect(editedLayout?.columnWeights != nil)
+        if let weights = editedLayout?.columnWeights {
+            #expect(weights[0] > weights[1])
+        }
+    }
+
+    @Test("shift+0 resets weights in choosingAnchor stage")
+    func shiftZeroResetsWeightsInChoosingAnchor() {
+        let (controller, _, _) = makeController()
+        var editedLayout: GridLayout?
+        controller.onLayoutEdited = { layout in
+            editedLayout = layout
+        }
+        controller.handleModifierTap()
+
+        // Apply a weight change, then reset, all before picking an anchor
+        controller.handleKeyDown(keyCode: arrowRight, shiftHeld: true)
+        controller.handleKeyDown(keyCode: zeroKey, shiftHeld: true)
+        let keys = cellKeyCodes(columns: 2, rows: 2)
+        controller.handleKeyDown(keyCode: keys[0], shiftHeld: false)
+        controller.handleKeyDown(keyCode: keys[0], shiftHeld: false)
+
+        #expect(editedLayout != nil)
+        #expect(editedLayout?.columnWeights == nil)
+        #expect(editedLayout?.rowWeights == nil)
+    }
+
     // MARK: - Full-screen guard
 
     @Test("showHUD shows disabled message when window is full screen")

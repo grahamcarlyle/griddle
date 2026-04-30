@@ -241,12 +241,21 @@ public class HUDController: InputHandler {
     }
 
     private func handleShiftArrowKey(keyCode: UInt16) {
-        guard selectionStage == .expanding, var layout = editedLayout else { return }
+        guard var layout = editedLayout else { return }
 
-        let minCol = min(anchorCol, extentCol)
-        let maxCol = max(anchorCol, extentCol)
-        let minRow = min(anchorRow, extentRow)
-        let maxRow = max(anchorRow, extentRow)
+        let minCol: Int, maxCol: Int, minRow: Int, maxRow: Int
+        switch selectionStage {
+        case .choosingAnchor:
+            cursorRevealed = true
+            updateHighlight()
+            minCol = cursorCol; maxCol = cursorCol
+            minRow = cursorRow; maxRow = cursorRow
+        case .expanding:
+            minCol = min(anchorCol, extentCol)
+            maxCol = max(anchorCol, extentCol)
+            minRow = min(anchorRow, extentRow)
+            maxRow = max(anchorRow, extentRow)
+        }
 
         let step = 0.1
 
@@ -307,7 +316,11 @@ public class HUDController: InputHandler {
     }
 
     private func handleResetWeights() {
-        guard selectionStage == .expanding, var layout = editedLayout else { return }
+        guard var layout = editedLayout else { return }
+        if selectionStage == .choosingAnchor {
+            cursorRevealed = true
+            updateHighlight()
+        }
         layout.columnWeights = nil
         layout.rowWeights = nil
         editedLayout = layout
