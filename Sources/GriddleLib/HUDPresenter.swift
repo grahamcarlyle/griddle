@@ -6,6 +6,7 @@ public protocol HUDPresenter {
     func showDisabledOverlay(on screen: ScreenInfo, message: String, theme: HUDTheme)
     func dismiss()
     func updateHighlight(_ region: HighlightRegion?)
+    func updateResizePreview(_ preview: ResizePreview?)
     func updateLayout(_ layout: GridLayout)
     func showWeightStatus()
     func enterPrefixMode(reachableCells: [Int: String])

@@ -6,6 +6,7 @@ public class NullHUDPresenter: HUDPresenter {
     public func showDisabledOverlay(on screen: ScreenInfo, message: String, theme: HUDTheme) {}
     public func dismiss() {}
     public func updateHighlight(_ region: HighlightRegion?) {}
+    public func updateResizePreview(_ preview: ResizePreview?) {}
     public func updateLayout(_ layout: GridLayout) {}
     public func showWeightStatus() {}
     public func enterPrefixMode(reachableCells: [Int: String]) {}

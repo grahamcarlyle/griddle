@@ -24,4 +24,8 @@ public class ScriptedInputSource: InputSource {
     public func sendKeyDown(keyCode: UInt16, shiftHeld: Bool = false) -> Bool {
         return handler?.handleKeyDown(keyCode: keyCode, shiftHeld: shiftHeld) ?? false
     }
+
+    public func sendShiftFlagsChanged(held: Bool) {
+        handler?.handleShiftFlagsChanged(held: held)
+    }
 }

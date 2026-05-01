@@ -43,4 +43,9 @@ public protocol InputHandler: AnyObject {
     func handleModifierTap()
     @discardableResult
     func handleKeyDown(keyCode: UInt16, shiftHeld: Bool) -> Bool
+    func handleShiftFlagsChanged(held: Bool)
+}
+
+extension InputHandler {
+    public func handleShiftFlagsChanged(held: Bool) {}
 }

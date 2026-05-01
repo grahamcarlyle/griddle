@@ -19,12 +19,39 @@ public struct HighlightRegion: Equatable {
     }
 }
 
+/// Highlights the grid lines bounding the rows/columns that would resize on Shift+arrow.
+/// Each field is a row/column index whose nearest border is drawn; nil suppresses that border.
+public struct ResizePreview: Equatable {
+    /// Border at rowOffsets[topRowBorder] (top edge of row `topRowBorder`).
+    public var topRowBorder: Int?
+    /// Border at rowOffsets[bottomRowBorder + 1] (bottom edge of row `bottomRowBorder`).
+    public var bottomRowBorder: Int?
+    /// Border at colOffsets[leftColBorder].
+    public var leftColBorder: Int?
+    /// Border at colOffsets[rightColBorder + 1].
+    public var rightColBorder: Int?
+
+    public init(topRowBorder: Int? = nil, bottomRowBorder: Int? = nil,
+                leftColBorder: Int? = nil, rightColBorder: Int? = nil) {
+        self.topRowBorder = topRowBorder
+        self.bottomRowBorder = bottomRowBorder
+        self.leftColBorder = leftColBorder
+        self.rightColBorder = rightColBorder
+    }
+
+    public var isEmpty: Bool {
+        topRowBorder == nil && bottomRowBorder == nil &&
+        leftColBorder == nil && rightColBorder == nil
+    }
+}
+
 /// Draws a grid overlay with themed cells for the HUD.
 public class HUDOverlayView: NSView {
     public var layout: GridLayout?
     public var keyLabels: [String]?
     public var theme: HUDTheme = .system
     public var highlightedRegion: HighlightRegion? { didSet { needsDisplay = true } }
+    public var resizePreview: ResizePreview? { didSet { needsDisplay = true } }
 
     /// When set, only these cell indices are reachable (prefix mode).
     /// Cells not in this set are dimmed. Each entry maps cellIndex → child key label.
@@ -155,6 +182,35 @@ public class HUDOverlayView: NSView {
                 y: cellRect.midY - size.height / 2
             )
             label.draw(at: labelPoint, withAttributes: attrs)
+        }
+
+        if let preview = resizePreview, !preview.isEmpty {
+            colors.cellColor.withAlphaComponent(1.0).setStroke()
+            let line = NSBezierPath()
+            line.lineWidth = 4
+            line.lineCapStyle = .round
+
+            if let r = preview.topRowBorder {
+                let y = bounds.height - CGFloat(rowOffsets[r]) * bounds.height
+                line.move(to: NSPoint(x: bounds.minX, y: y))
+                line.line(to: NSPoint(x: bounds.maxX, y: y))
+            }
+            if let r = preview.bottomRowBorder {
+                let y = bounds.height - CGFloat(rowOffsets[r + 1]) * bounds.height
+                line.move(to: NSPoint(x: bounds.minX, y: y))
+                line.line(to: NSPoint(x: bounds.maxX, y: y))
+            }
+            if let c = preview.leftColBorder {
+                let x = bounds.minX + CGFloat(colOffsets[c]) * bounds.width
+                line.move(to: NSPoint(x: x, y: bounds.minY))
+                line.line(to: NSPoint(x: x, y: bounds.maxY))
+            }
+            if let c = preview.rightColBorder {
+                let x = bounds.minX + CGFloat(colOffsets[c + 1]) * bounds.width
+                line.move(to: NSPoint(x: x, y: bounds.minY))
+                line.line(to: NSPoint(x: x, y: bounds.maxY))
+            }
+            line.stroke()
         }
 
         if showWeightStatus {

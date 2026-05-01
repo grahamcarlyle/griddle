@@ -48,6 +48,10 @@ public class PanelHUDPresenter: HUDPresenter {
         overlayView?.highlightedRegion = region
     }
 
+    public func updateResizePreview(_ preview: ResizePreview?) {
+        overlayView?.resizePreview = preview
+    }
+
     public func updateLayout(_ layout: GridLayout) {
         overlayView?.layout = layout
         overlayView?.needsDisplay = true

@@ -4,6 +4,7 @@ import Cocoa
 public class RealInputSource: InputSource {
     private var modifierKeys: [String]
     private var modifiersTapped = false
+    private var lastShiftHeld = false
     private var flagsMonitor: Any?
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -36,6 +37,12 @@ public class RealInputSource: InputSource {
         } else if modifiersTapped {
             modifiersTapped = false
             handler?.handleModifierTap()
+        }
+
+        let shiftHeld = currentFlags.contains(.shift)
+        if shiftHeld != lastShiftHeld {
+            lastShiftHeld = shiftHeld
+            handler?.handleShiftFlagsChanged(held: shiftHeld)
         }
     }
 

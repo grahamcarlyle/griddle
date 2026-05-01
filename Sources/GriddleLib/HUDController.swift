@@ -34,6 +34,9 @@ public class HUDController: InputHandler {
     private var weightsDirty: Bool = false
     public var onLayoutEdited: ((GridLayout) -> Void)?
 
+    // Resize preview state
+    private var shiftHeld: Bool = false
+
     private static let escapeKeyCode: UInt16 = 53
     private static let returnKeyCode: UInt16 = 36
     private static let arrowUp: UInt16 = 126
@@ -64,6 +67,11 @@ public class HUDController: InputHandler {
         } else {
             showHUD()
         }
+    }
+
+    public func handleShiftFlagsChanged(held: Bool) {
+        shiftHeld = held
+        updateResizePreview()
     }
 
     @discardableResult
@@ -154,6 +162,7 @@ public class HUDController: InputHandler {
         self.weightsDirty = false
 
         inputSource.start(handler: self)
+        updateResizePreview()
     }
 
     private func showDisabledHUD(message: String) {
@@ -402,6 +411,60 @@ public class HUDController: InputHandler {
                 maxCol: max(anchorCol, extentCol), maxRow: max(anchorRow, extentRow)
             ))
         }
+        updateResizePreview()
+    }
+
+    private func updateResizePreview() {
+        guard isHUDVisible, shiftHeld, let layout = activeLayout else {
+            presenter.updateResizePreview(nil)
+            return
+        }
+
+        let minCol: Int, maxCol: Int, minRow: Int, maxRow: Int
+        switch selectionStage {
+        case .choosingAnchor:
+            minCol = cursorCol; maxCol = cursorCol
+            minRow = cursorRow; maxRow = cursorRow
+        case .expanding:
+            minCol = min(anchorCol, extentCol); maxCol = max(anchorCol, extentCol)
+            minRow = min(anchorRow, extentRow); maxRow = max(anchorRow, extentRow)
+        }
+
+        let topRowBorder: Int?
+        let bottomRowBorder: Int?
+        let leftColBorder: Int?
+        let rightColBorder: Int?
+        switch config.resizeMode {
+        case .classic:
+            topRowBorder = minRow > 0 ? minRow : nil
+            bottomRowBorder = maxRow < layout.rows - 1 ? maxRow : nil
+            leftColBorder = minCol > 0 ? minCol : nil
+            rightColBorder = maxCol < layout.columns - 1 ? maxCol : nil
+        case .directional:
+            // Only the moving border (after-side preferred, before-side fallback at grid edge).
+            if maxRow - minRow + 1 >= layout.rows {
+                topRowBorder = nil; bottomRowBorder = nil
+            } else if maxRow < layout.rows - 1 {
+                topRowBorder = nil; bottomRowBorder = maxRow
+            } else {
+                topRowBorder = minRow; bottomRowBorder = nil
+            }
+            if maxCol - minCol + 1 >= layout.columns {
+                leftColBorder = nil; rightColBorder = nil
+            } else if maxCol < layout.columns - 1 {
+                leftColBorder = nil; rightColBorder = maxCol
+            } else {
+                leftColBorder = minCol; rightColBorder = nil
+            }
+        }
+
+        let preview = ResizePreview(
+            topRowBorder: topRowBorder,
+            bottomRowBorder: bottomRowBorder,
+            leftColBorder: leftColBorder,
+            rightColBorder: rightColBorder
+        )
+        presenter.updateResizePreview(preview.isEmpty ? nil : preview)
     }
 
     // MARK: - Prefix Mode
