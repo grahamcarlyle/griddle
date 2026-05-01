@@ -161,7 +161,6 @@ public class HUDController: InputHandler {
         self.editedLayout = layout
         self.weightsDirty = false
 
-        inputSource.start(handler: self)
         updateResizePreview()
     }
 
@@ -182,7 +181,6 @@ public class HUDController: InputHandler {
         editedLayout = nil
         weightsDirty = false
         activeScreen = nil
-        inputSource.stop()
         presenter.dismiss()
         activeKeyMap = nil
         isHUDVisible = false

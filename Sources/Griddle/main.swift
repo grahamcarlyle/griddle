@@ -58,7 +58,7 @@ while !checkAccessibilityPermission() {
     }
 }
 
-inputSource.startModifierWatch(handler: hudController)
+inputSource.start(handler: hudController)
 
 // Set up status bar
 let statusBarController = StatusBarController(configStore: configStore, hotkeyManager: hotkeyManager, displaySystem: displaySystem)

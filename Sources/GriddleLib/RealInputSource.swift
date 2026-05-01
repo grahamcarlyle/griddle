@@ -18,13 +18,26 @@ public class RealInputSource: InputSource {
         self.modifierKeys = modifierKeys
     }
 
-    // MARK: - Modifier Watch
+    public func cancelModifierTap() {
+        modifiersTapped = false
+    }
 
-    public func startModifierWatch(handler: InputHandler) {
+    // MARK: - InputSource Protocol
+
+    public func start(handler: InputHandler) {
         self.handler = handler
         flagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             self?.handleFlagsChanged(event)
         }
+        installEventTap()
+    }
+
+    public func stop() {
+        if let monitor = flagsMonitor {
+            NSEvent.removeMonitor(monitor)
+            flagsMonitor = nil
+        }
+        removeEventTap()
     }
 
     private func handleFlagsChanged(_ event: NSEvent) {
@@ -44,21 +57,6 @@ public class RealInputSource: InputSource {
             lastShiftHeld = shiftHeld
             handler?.handleShiftFlagsChanged(held: shiftHeld)
         }
-    }
-
-    public func cancelModifierTap() {
-        modifiersTapped = false
-    }
-
-    // MARK: - InputSource Protocol
-
-    public func start(handler: InputHandler) {
-        self.handler = handler
-        installEventTap()
-    }
-
-    public func stop() {
-        removeEventTap()
     }
 
     // MARK: - CGEvent Tap
