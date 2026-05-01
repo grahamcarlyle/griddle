@@ -143,6 +143,11 @@ public enum KeyStyle: String, Codable, CaseIterable {
     case numbers
 }
 
+public enum ResizeMode: String, Codable, CaseIterable {
+    case classic
+    case directional
+}
+
 /// Top-level configuration stored in ~/.config/griddle/config.json
 public struct GriddleConfig: Codable {
     public var activeLayoutID: String
@@ -151,6 +156,7 @@ public struct GriddleConfig: Codable {
     public var keyStyle: KeyStyle
     public var hudTheme: HUDTheme
     public var cycleKey: CycleKey
+    public var resizeMode: ResizeMode
     /// Per-screen layout overrides. Key is screen identifier (name + position), value is layout ID.
     public var screenLayouts: [String: String]
     /// Per-screen layout pool overrides. Key is screen identifier, value is array of layout IDs.
@@ -166,13 +172,14 @@ public struct GriddleConfig: Codable {
         }
     }
 
-    public init(activeLayoutID: String, layouts: [GridLayout], modifier: ModifierConfig, keyStyle: KeyStyle = .spatial, hudTheme: HUDTheme = .system, cycleKey: CycleKey = .space, screenLayouts: [String: String] = [:], screenLayoutPools: [String: [String]] = [:]) {
+    public init(activeLayoutID: String, layouts: [GridLayout], modifier: ModifierConfig, keyStyle: KeyStyle = .spatial, hudTheme: HUDTheme = .system, cycleKey: CycleKey = .space, resizeMode: ResizeMode = .classic, screenLayouts: [String: String] = [:], screenLayoutPools: [String: [String]] = [:]) {
         self.activeLayoutID = activeLayoutID
         self.layouts = layouts
         self.modifier = modifier
         self.keyStyle = keyStyle
         self.hudTheme = hudTheme
         self.cycleKey = cycleKey
+        self.resizeMode = resizeMode
         self.screenLayouts = screenLayouts
         self.screenLayoutPools = screenLayoutPools
     }
@@ -186,6 +193,7 @@ public struct GriddleConfig: Codable {
         keyStyle = try container.decodeIfPresent(KeyStyle.self, forKey: .keyStyle) ?? .spatial
         hudTheme = try container.decodeIfPresent(HUDTheme.self, forKey: .hudTheme) ?? .system
         cycleKey = try container.decodeIfPresent(CycleKey.self, forKey: .cycleKey) ?? .space
+        resizeMode = try container.decodeIfPresent(ResizeMode.self, forKey: .resizeMode) ?? .classic
         screenLayouts = try container.decodeIfPresent([String: String].self, forKey: .screenLayouts) ?? [:]
         screenLayoutPools = try container.decodeIfPresent([String: [String]].self, forKey: .screenLayoutPools) ?? [:]
     }

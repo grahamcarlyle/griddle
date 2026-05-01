@@ -246,6 +246,107 @@ struct HUDControllerTests {
         #expect(editedLayout?.rowWeights == nil)
     }
 
+    // MARK: - Directional resize mode
+
+    private func makeDirectionalController() -> HUDController {
+        let sim = SimulatedDisplaySystem(screens: [screen], windows: [
+            SimWindow(title: "Safari", appName: "Safari",
+                      frame: CGRect(x: 100, y: 100, width: 600, height: 400), isFocused: true)
+        ])
+        let input = ScriptedInputSource()
+        var config = GriddleConfig.default
+        config.activeLayoutID = "3x3"
+        config.resizeMode = .directional
+        return HUDController(config: config, displaySystem: sim, inputSource: input, presenter: NullHUDPresenter())
+    }
+
+    /// Open HUD on the 3×3 in directional mode, navigate the cursor to (col, row), press the shift+arrow,
+    /// then commit via Return-Return. Returns the edited layout's row and column weights.
+    private func directionalResize(targetCol: Int, targetRow: Int, shiftKey: UInt16) -> (col: [Double]?, row: [Double]?) {
+        let controller = makeDirectionalController()
+        var edited: GridLayout?
+        controller.onLayoutEdited = { edited = $0 }
+        controller.handleModifierTap()
+
+        // First arrow-down/right reveals cursor at (0,0). Navigate from there.
+        controller.handleKeyDown(keyCode: arrowDown, shiftHeld: false)  // reveal at (0,0)
+        for _ in 0..<targetRow { controller.handleKeyDown(keyCode: arrowDown, shiftHeld: false) }
+        for _ in 0..<targetCol { controller.handleKeyDown(keyCode: arrowRight, shiftHeld: false) }
+
+        controller.handleKeyDown(keyCode: shiftKey, shiftHeld: true)
+        controller.handleKeyDown(keyCode: returnKey, shiftHeld: false)  // confirm anchor → expanding
+        controller.handleKeyDown(keyCode: returnKey, shiftHeld: false)  // confirm selection (commits)
+
+        return (edited?.columnWeights, edited?.rowWeights)
+    }
+
+    @Test("directional: top row + Shift+Down grows top, shrinks middle")
+    func directionalTopRowDownGrows() {
+        let (_, rows) = directionalResize(targetCol: 0, targetRow: 0, shiftKey: arrowDown)
+        #expect(rows == [1.1, 0.9, 1.0])
+    }
+
+    @Test("directional: top row + Shift+Up shrinks top, grows middle")
+    func directionalTopRowUpShrinks() {
+        let (_, rows) = directionalResize(targetCol: 0, targetRow: 0, shiftKey: arrowUp)
+        #expect(rows == [0.9, 1.1, 1.0])
+    }
+
+    @Test("directional: middle row + Shift+Down grows middle, shrinks bottom")
+    func directionalMiddleRowDownGrows() {
+        let (_, rows) = directionalResize(targetCol: 0, targetRow: 1, shiftKey: arrowDown)
+        #expect(rows == [1.0, 1.1, 0.9])
+    }
+
+    @Test("directional: middle row + Shift+Up shrinks middle, grows bottom")
+    func directionalMiddleRowUpShrinks() {
+        let (_, rows) = directionalResize(targetCol: 0, targetRow: 1, shiftKey: arrowUp)
+        #expect(rows == [1.0, 0.9, 1.1])
+    }
+
+    @Test("directional: bottom row + Shift+Down shrinks bottom (fallback to top border)")
+    func directionalBottomRowDownShrinks() {
+        let (_, rows) = directionalResize(targetCol: 0, targetRow: 2, shiftKey: arrowDown)
+        #expect(rows == [1.0, 1.1, 0.9])
+    }
+
+    @Test("directional: bottom row + Shift+Up grows bottom (fallback to top border)")
+    func directionalBottomRowUpGrows() {
+        let (_, rows) = directionalResize(targetCol: 0, targetRow: 2, shiftKey: arrowUp)
+        #expect(rows == [1.0, 0.9, 1.1])
+    }
+
+    @Test("directional: left col + Shift+Right grows left, shrinks middle")
+    func directionalLeftColRightGrows() {
+        let (cols, _) = directionalResize(targetCol: 0, targetRow: 0, shiftKey: arrowRight)
+        #expect(cols == [1.1, 0.9, 1.0])
+    }
+
+    @Test("directional: right col + Shift+Right shrinks right (fallback)")
+    func directionalRightColRightShrinks() {
+        let (cols, _) = directionalResize(targetCol: 2, targetRow: 0, shiftKey: arrowRight)
+        #expect(cols == [1.0, 1.1, 0.9])
+    }
+
+    @Test("directional: full-row selection + Shift+Down is a no-op")
+    func directionalFullAxisNoop() {
+        let controller = makeDirectionalController()
+        var edited: GridLayout?
+        controller.onLayoutEdited = { edited = $0 }
+        controller.handleModifierTap()
+
+        // Anchor at (0,0), expand to (0,2) so all 3 rows are in selection
+        controller.handleKeyDown(keyCode: arrowDown, shiftHeld: false)  // reveal at (0,0)
+        controller.handleKeyDown(keyCode: returnKey, shiftHeld: false)  // confirm anchor
+        controller.handleKeyDown(keyCode: arrowDown, shiftHeld: false)  // extent → (0,1)
+        controller.handleKeyDown(keyCode: arrowDown, shiftHeld: false)  // extent → (0,2)
+        controller.handleKeyDown(keyCode: arrowDown, shiftHeld: true)   // shift+down: full-row selection on rows
+        controller.handleKeyDown(keyCode: returnKey, shiftHeld: false)  // commit
+
+        // Selection only covers col 0 (1 col), so columns aren't full-axis. We focus on rows here.
+        #expect(edited?.rowWeights == nil)
+    }
+
     // MARK: - Full-screen guard
 
     @Test("showHUD shows disabled message when window is full screen")

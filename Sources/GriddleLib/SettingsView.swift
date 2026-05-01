@@ -275,6 +275,18 @@ public struct SettingsView: View {
                             .labelsHidden()
                         }
 
+                        LabeledContent("Resize") {
+                            Picker("", selection: Binding(
+                                get: { configStore.config.resizeMode },
+                                set: { mode in configStore.config.resizeMode = mode }
+                            )) {
+                                Text("Up/Right grows").tag(ResizeMode.classic)
+                                Text("Arrow moves border").tag(ResizeMode.directional)
+                            }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                        }
+
                         Text("Tap modifiers to show grid, or hold modifier + key for instant move")
                             .font(.caption2)
                             .foregroundColor(.secondary)

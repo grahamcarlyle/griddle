@@ -254,6 +254,33 @@ struct ConfigCodableTests {
         #expect(decoded.layouts[0].rowWeights == nil)
     }
 
+    @Test("default resizeMode is classic")
+    func defaultResizeMode() {
+        #expect(GriddleConfig.default.resizeMode == .classic)
+    }
+
+    @Test("resizeMode roundtrips through JSON")
+    func resizeModeRoundtrip() throws {
+        var config = GriddleConfig.default
+        config.resizeMode = .directional
+        let data = try JSONEncoder().encode(config)
+        let decoded = try JSONDecoder().decode(GriddleConfig.self, from: data)
+        #expect(decoded.resizeMode == .directional)
+    }
+
+    @Test("missing resizeMode in JSON defaults to classic")
+    func missingResizeModeDefaultsToClassic() throws {
+        let json = """
+        {
+            "activeLayoutID": "2x2",
+            "layouts": [],
+            "modifier": {"keys": ["ctrl"]}
+        }
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(GriddleConfig.self, from: json)
+        #expect(decoded.resizeMode == .classic)
+    }
+
     @Test("layout with both column and row weights roundtrips")
     func bothWeightsRoundtrip() throws {
         var layout = GridLayout.uniform(id: "3x3", name: "3×3", columns: 3, rows: 3)

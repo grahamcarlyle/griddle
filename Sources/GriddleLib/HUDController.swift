@@ -257,62 +257,86 @@ public class HUDController: InputHandler {
             maxRow = max(anchorRow, extentRow)
         }
 
-        let step = 0.1
-
+        var changed = false
         switch keyCode {
         case Self.arrowRight, Self.arrowLeft:
-            if layout.columnWeights == nil {
-                layout.columnWeights = Array(repeating: 1.0, count: layout.columns)
-            }
-            let selectedCount = maxCol - minCol + 1
-            let nonSelectedCount = layout.columns - selectedCount
-            // Equalize selected columns: same weight, preserving their combined total
-            let selectedTotal = (minCol...maxCol).reduce(0.0) { $0 + layout.columnWeights![$1] }
-            let uniform = selectedTotal / Double(selectedCount)
-            for c in minCol...maxCol {
-                layout.columnWeights![c] = uniform
-            }
-            let delta = keyCode == Self.arrowRight ? step : -step
-            for c in minCol...maxCol {
-                layout.columnWeights![c] = max(0.1, layout.columnWeights![c] + delta)
-            }
-            if nonSelectedCount > 0 {
-                let compensation = delta * Double(selectedCount) / Double(nonSelectedCount)
-                for c in 0..<layout.columns where c < minCol || c > maxCol {
-                    layout.columnWeights![c] = max(0.1, layout.columnWeights![c] - compensation)
-                }
+            var weights = layout.columnWeights ?? Array(repeating: 1.0, count: layout.columns)
+            if applyResize(weights: &weights, count: layout.columns,
+                           minIdx: minCol, maxIdx: maxCol, keyCode: keyCode) {
+                layout.columnWeights = weights
+                changed = true
             }
         case Self.arrowUp, Self.arrowDown:
-            if layout.rowWeights == nil {
-                layout.rowWeights = Array(repeating: 1.0, count: layout.rows)
-            }
-            let selectedCount = maxRow - minRow + 1
-            let nonSelectedCount = layout.rows - selectedCount
-            // Equalize selected rows: same weight, preserving their combined total
-            let selectedTotal = (minRow...maxRow).reduce(0.0) { $0 + layout.rowWeights![$1] }
-            let uniform = selectedTotal / Double(selectedCount)
-            for r in minRow...maxRow {
-                layout.rowWeights![r] = uniform
-            }
-            // Shift+Up grows (more height), Shift+Down shrinks
-            let delta = keyCode == Self.arrowUp ? step : -step
-            for r in minRow...maxRow {
-                layout.rowWeights![r] = max(0.1, layout.rowWeights![r] + delta)
-            }
-            if nonSelectedCount > 0 {
-                let compensation = delta * Double(selectedCount) / Double(nonSelectedCount)
-                for r in 0..<layout.rows where r < minRow || r > maxRow {
-                    layout.rowWeights![r] = max(0.1, layout.rowWeights![r] - compensation)
-                }
+            var weights = layout.rowWeights ?? Array(repeating: 1.0, count: layout.rows)
+            if applyResize(weights: &weights, count: layout.rows,
+                           minIdx: minRow, maxIdx: maxRow, keyCode: keyCode) {
+                layout.rowWeights = weights
+                changed = true
             }
         default:
             break
         }
 
+        guard changed else { return }
         editedLayout = layout
         weightsDirty = true
         presenter.updateLayout(layout)
         presenter.showWeightStatus()
+    }
+
+    /// Returns true if weights changed.
+    private func applyResize(weights: inout [Double], count: Int, minIdx: Int, maxIdx: Int, keyCode: UInt16) -> Bool {
+        let step = 0.1
+        let selectedCount = maxIdx - minIdx + 1
+
+        // Equalize the selected range, preserving combined total.
+        let selectedTotal = (minIdx...maxIdx).reduce(0.0) { $0 + weights[$1] }
+        let uniform = selectedTotal / Double(selectedCount)
+        for i in minIdx...maxIdx {
+            weights[i] = uniform
+        }
+
+        switch config.resizeMode {
+        case .classic:
+            // Up/Right grow, Down/Left shrink. Compensation spread uniformly across all non-selected.
+            let grows = (keyCode == Self.arrowUp || keyCode == Self.arrowRight)
+            let delta = grows ? step : -step
+            for i in minIdx...maxIdx {
+                weights[i] = max(0.1, weights[i] + delta)
+            }
+            let nonSelectedCount = count - selectedCount
+            if nonSelectedCount > 0 {
+                let compensation = delta * Double(selectedCount) / Double(nonSelectedCount)
+                for i in 0..<count where i < minIdx || i > maxIdx {
+                    weights[i] = max(0.1, weights[i] - compensation)
+                }
+            }
+            return true
+
+        case .directional:
+            // Bottom/right border (after selection) moves in arrow direction; falls back to top/left
+            // border (before selection) when the after-border is at the grid edge. Single adjacent
+            // neighbor on the other side of the moving border absorbs the change.
+            let arrowSign: Double = (keyCode == Self.arrowDown || keyCode == Self.arrowRight) ? 1 : -1
+
+            let neighborIdx: Int
+            let selectionDelta: Double
+            if maxIdx < count - 1 {
+                neighborIdx = maxIdx + 1
+                selectionDelta = arrowSign * step
+            } else if minIdx > 0 {
+                neighborIdx = minIdx - 1
+                selectionDelta = -arrowSign * step
+            } else {
+                return false  // Full-axis selection: no neighbors either side.
+            }
+
+            for i in minIdx...maxIdx {
+                weights[i] = max(0.1, weights[i] + selectionDelta)
+            }
+            weights[neighborIdx] = max(0.1, weights[neighborIdx] - selectionDelta * Double(selectedCount))
+            return true
+        }
     }
 
     private func handleResetWeights() {
