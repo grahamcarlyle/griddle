@@ -10,10 +10,12 @@ typealias GridLayout = GriddleLib.GridLayout
 /// Orchestrates demo sequences, rendering each to individual PNGs and per-sequence APNGs.
 class DemoController {
     let outputDir: String
-    let config: GriddleConfig
+    var config: GriddleConfig
     var desktopView: SimulatedDesktopView?
-    var overlayView: HUDOverlayView?
     var displaySystem: SimulatedDisplaySystem
+    var presenter: DemoHUDPresenter?
+    var inputSource: ScriptedInputSource?
+    var hudController: HUDController?
 
     private let initialWindows: [SimWindow] = [
         SimWindow(title: "Welcome to Safari", appName: "Safari",
@@ -24,9 +26,17 @@ class DemoController {
                   frame: CGRect(x: 500, y: 120, width: 500, height: 450)),
     ]
 
-    // Track state applied during a sequence
+    // Track state applied during a sequence (used by direct-tile actions)
     private var activeWeights: (columnWeights: [Double]?, rowWeights: [Double]?) = (nil, nil)
     private var activeLayoutID: String?
+
+    // Carbon key codes
+    private let kEscape: UInt16 = 53
+    private let kReturn: UInt16 = 36
+    private let kArrowUp: UInt16 = 126
+    private let kArrowDown: UInt16 = 125
+    private let kArrowLeft: UInt16 = 123
+    private let kArrowRight: UInt16 = 124
 
     init(outputDir: String) {
         self.outputDir = outputDir
@@ -47,6 +57,14 @@ class DemoController {
         let desktopView = SimulatedDesktopView(displaySystem: displaySystem, screenInfo: screen)
         desktopView.setFrameSize(screen.frame.size)
         self.desktopView = desktopView
+
+        let presenter = DemoHUDPresenter(parentView: desktopView)
+        let input = ScriptedInputSource()
+        let controller = HUDController(config: config, displaySystem: displaySystem, inputSource: input, presenter: presenter)
+        input.start(handler: controller)
+        self.presenter = presenter
+        self.inputSource = input
+        self.hudController = controller
 
         for sequence in DemoSequence.all {
             runSequence(sequence, screen: screen)
@@ -93,21 +111,22 @@ class DemoController {
     private func apply(_ action: DemoAction, screen: ScreenInfo) {
         switch action {
         case .showDesktop:
-            removeOverlay()
+            dismissControllerHUD()
 
         case .showHUD(let layoutID, let theme):
-            guard let layout = config.layouts.first(where: { $0.id == layoutID }) else { return }
+            dismissControllerHUD()
+            config.activeLayoutID = layoutID
+            config.hudTheme = theme
+            hudController?.update(config: config)
             activeLayoutID = layoutID
-            var displayLayout = layout
-            if let cw = activeWeights.columnWeights { displayLayout.columnWeights = cw }
-            if let rw = activeWeights.rowWeights { displayLayout.rowWeights = rw }
-            showOverlay(layout: displayLayout, screen: screen, theme: theme)
+            activeWeights = (nil, nil)
+            inputSource?.sendModifierTap()
 
         case .highlight(let col, let row):
-            overlayView?.highlightedRegion = HighlightRegion(minCol: col, minRow: row, maxCol: col, maxRow: row)
+            presenter?.overlayView?.highlightedRegion = HighlightRegion(minCol: col, minRow: row, maxCol: col, maxRow: row)
 
         case .highlightRegion(let minCol, let minRow, let maxCol, let maxRow):
-            overlayView?.highlightedRegion = HighlightRegion(minCol: minCol, minRow: minRow, maxCol: maxCol, maxRow: maxRow)
+            presenter?.overlayView?.highlightedRegion = HighlightRegion(minCol: minCol, minRow: minRow, maxCol: maxCol, maxRow: maxRow)
 
         case .tileWindow(let windowIndex, let cellIndex):
             let lid = activeLayoutID ?? config.activeLayoutID
@@ -137,48 +156,41 @@ class DemoController {
             desktopView?.needsDisplay = true
 
         case .dismissHUD:
-            removeOverlay()
+            dismissControllerHUD()
 
         case .resetWindows:
+            dismissControllerHUD()
             displaySystem.windows = initialWindows
             activeWeights = (nil, nil)
             activeLayoutID = nil
-            removeOverlay()
             desktopView?.needsDisplay = true
 
-        case .setWeights(let columnWeights, let rowWeights):
-            activeWeights = (columnWeights, rowWeights)
-            if var layout = overlayView?.layout {
-                layout.columnWeights = columnWeights
-                layout.rowWeights = rowWeights
-                overlayView?.layout = layout
-                overlayView?.needsDisplay = true
-            }
+        case .arrowKey(let direction):
+            inputSource?.sendKeyDown(keyCode: arrowKeyCode(direction), shiftHeld: false)
 
-        case .showWeightStatus:
-            overlayView?.showWeightStatus = true
-            overlayView?.needsDisplay = true
+        case .pressEnter:
+            inputSource?.sendKeyDown(keyCode: kReturn, shiftHeld: false)
+
+        case .shiftHold(let held):
+            inputSource?.sendShiftFlagsChanged(held: held)
+
+        case .shiftArrow(let direction):
+            inputSource?.sendKeyDown(keyCode: arrowKeyCode(direction), shiftHeld: true)
         }
     }
 
-    // MARK: - Overlay Management
-
-    private func showOverlay(layout: GridLayout, screen: ScreenInfo, theme: HUDTheme = .system) {
-        removeOverlay()
-
-        let keyMap = KeyMap.build(for: config.keyStyle, columns: layout.columns, rows: layout.rows)
-        let overlayView = HUDOverlayView(frame: NSRect(origin: .zero, size: screen.frame.size))
-        overlayView.layout = layout
-        overlayView.keyLabels = keyMap.labels
-        overlayView.theme = theme
-
-        desktopView?.addSubview(overlayView)
-        self.overlayView = overlayView
+    private func arrowKeyCode(_ direction: ArrowDirection) -> UInt16 {
+        switch direction {
+        case .up: return kArrowUp
+        case .down: return kArrowDown
+        case .left: return kArrowLeft
+        case .right: return kArrowRight
+        }
     }
 
-    private func removeOverlay() {
-        overlayView?.removeFromSuperview()
-        overlayView = nil
+    private func dismissControllerHUD() {
+        guard let controller = hudController, controller.isHUDVisible else { return }
+        inputSource?.sendKeyDown(keyCode: kEscape, shiftHeld: false)
     }
 
     // MARK: - Settings Screenshot

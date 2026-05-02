@@ -1,6 +1,10 @@
 import Foundation
 import GriddleLib
 
+enum ArrowDirection {
+    case up, down, left, right
+}
+
 enum DemoAction {
     case showDesktop
     case showHUD(layout: String, theme: HUDTheme)
@@ -10,8 +14,14 @@ enum DemoAction {
     case tileWindowToRegion(windowIndex: Int, minCol: Int, minRow: Int, maxCol: Int, maxRow: Int)
     case dismissHUD
     case resetWindows
-    case setWeights(columnWeights: [Double]?, rowWeights: [Double]?)
-    case showWeightStatus
+    /// Send an arrow key (drives HUDController cursor or extent).
+    case arrowKey(ArrowDirection)
+    /// Send Return (anchor at choosingAnchor, confirm at expanding).
+    case pressEnter
+    /// Send a shift-flags-changed event (held=true paints resize borders, false clears them).
+    case shiftHold(Bool)
+    /// Send Shift + arrow to drive HUDController's resize logic.
+    case shiftArrow(ArrowDirection)
 }
 
 struct DemoStep {
@@ -162,45 +172,41 @@ struct DemoSequence {
                 actions: [.showHUD(layout: "2x2", theme: .system)]
             ),
             DemoStep(
-                description: "Select top-left cell as anchor",
+                description: "Arrow reveals cursor at top-left",
                 hold: 0.8,
-                actions: [.highlight(col: 0, row: 0)]
+                actions: [.arrowKey(.right)]
             ),
             DemoStep(
-                description: "Enter — expanding mode, selection ready",
+                description: "Enter — anchor set, expanding mode",
                 hold: 0.8,
-                actions: [.highlightRegion(minCol: 0, minRow: 0, maxCol: 0, maxRow: 0)]
+                actions: [.pressEnter]
+            ),
+            DemoStep(
+                description: "Hold Shift — resize borders highlight",
+                hold: 1.0,
+                actions: [.shiftHold(true)]
             ),
             DemoStep(
                 description: "Shift+Right — left column grows wider",
                 hold: 1.0,
-                actions: [
-                    .setWeights(columnWeights: [1.3, 0.7], rowWeights: nil),
-                    .showWeightStatus
-                ]
+                actions: [.shiftArrow(.right)]
             ),
             DemoStep(
                 description: "Shift+Right again — left column even wider",
                 hold: 1.0,
-                actions: [
-                    .setWeights(columnWeights: [1.6, 0.4], rowWeights: nil),
-                    .showWeightStatus
-                ]
+                actions: [.shiftArrow(.right)]
             ),
             DemoStep(
                 description: "Shift+Up — top row grows taller",
                 hold: 1.0,
-                actions: [
-                    .setWeights(columnWeights: [1.6, 0.4], rowWeights: [1.4, 0.6]),
-                    .showWeightStatus
-                ]
+                actions: [.shiftArrow(.up)]
             ),
             DemoStep(
                 description: "Enter — window tiles with custom proportions",
                 hold: 2.0,
                 actions: [
-                    .dismissHUD,
-                    .tileWindow(windowIndex: 0, cellIndex: 0)
+                    .shiftHold(false),
+                    .pressEnter
                 ]
             ),
         ]
