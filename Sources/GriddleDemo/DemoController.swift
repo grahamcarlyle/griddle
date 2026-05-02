@@ -26,10 +26,6 @@ class DemoController {
                   frame: CGRect(x: 500, y: 120, width: 500, height: 450)),
     ]
 
-    // Track state applied during a sequence (used by direct-tile actions)
-    private var activeWeights: (columnWeights: [Double]?, rowWeights: [Double]?) = (nil, nil)
-    private var activeLayoutID: String?
-
     // Carbon key codes
     private let kEscape: UInt16 = 53
     private let kReturn: UInt16 = 36
@@ -67,7 +63,7 @@ class DemoController {
         self.hudController = controller
 
         for sequence in DemoSequence.all {
-            runSequence(sequence, screen: screen)
+            runSequence(sequence)
         }
 
         renderSettingsScreenshot()
@@ -75,12 +71,12 @@ class DemoController {
         NSLog("GriddleDemo: All sequences complete — output in \(outputDir)")
     }
 
-    private func runSequence(_ sequence: DemoSequence, screen: ScreenInfo) {
+    private func runSequence(_ sequence: DemoSequence) {
         var frames: [(CGImage, TimeInterval)] = []
 
         for step in sequence.steps {
             for action in step.actions {
-                apply(action, screen: screen)
+                apply(action)
             }
 
             desktopView?.needsDisplay = true
@@ -108,62 +104,32 @@ class DemoController {
 
     // MARK: - Action Interpreter
 
-    private func apply(_ action: DemoAction, screen: ScreenInfo) {
+    private func apply(_ action: DemoAction) {
         switch action {
-        case .showDesktop:
+        case .resetWindows:
             dismissControllerHUD()
+            displaySystem.windows = initialWindows
+            desktopView?.needsDisplay = true
 
         case .showHUD(let layoutID, let theme):
             dismissControllerHUD()
             config.activeLayoutID = layoutID
             config.hudTheme = theme
             hudController?.update(config: config)
-            activeLayoutID = layoutID
-            activeWeights = (nil, nil)
             inputSource?.sendModifierTap()
 
-        case .highlight(let col, let row):
-            presenter?.overlayView?.highlightedRegion = HighlightRegion(minCol: col, minRow: row, maxCol: col, maxRow: row)
-
-        case .highlightRegion(let minCol, let minRow, let maxCol, let maxRow):
-            presenter?.overlayView?.highlightedRegion = HighlightRegion(minCol: minCol, minRow: minRow, maxCol: maxCol, maxRow: maxRow)
-
-        case .tileWindow(let windowIndex, let cellIndex):
-            let lid = activeLayoutID ?? config.activeLayoutID
-            guard var layout = config.layouts.first(where: { $0.id == lid }),
-                  cellIndex < layout.cells.count,
-                  windowIndex < displaySystem.windows.count else { return }
-            if let cw = activeWeights.columnWeights { layout.columnWeights = cw }
-            if let rw = activeWeights.rowWeights { layout.rowWeights = rw }
-            displaySystem.focusWindow(at: windowIndex)
-            let cell = layout.cells[cellIndex]
-            let frame = WindowMover.frame(for: cell, in: layout, on: screen)
-            displaySystem.moveFocusedWindow(to: frame)
-            desktopView?.needsDisplay = true
-
-        case .tileWindowToRegion(let windowIndex, let minCol, let minRow, let maxCol, let maxRow):
-            let lid = activeLayoutID ?? config.activeLayoutID
-            guard var layout = config.layouts.first(where: { $0.id == lid }),
-                  windowIndex < displaySystem.windows.count else { return }
-            if let cw = activeWeights.columnWeights { layout.columnWeights = cw }
-            if let rw = activeWeights.rowWeights { layout.rowWeights = rw }
-            displaySystem.focusWindow(at: windowIndex)
-            let anchor = GridCell(col: minCol, row: minRow, colSpan: 1, rowSpan: 1)
-            let extent = GridCell(col: maxCol, row: maxRow, colSpan: 1, rowSpan: 1)
-            let target = WindowMover.boundingCell(from: anchor, to: extent)
-            let frame = WindowMover.frame(for: target, in: layout, on: screen)
-            displaySystem.moveFocusedWindow(to: frame)
-            desktopView?.needsDisplay = true
-
-        case .dismissHUD:
-            dismissControllerHUD()
-
-        case .resetWindows:
-            dismissControllerHUD()
-            displaySystem.windows = initialWindows
-            activeWeights = (nil, nil)
-            activeLayoutID = nil
-            desktopView?.needsDisplay = true
+        case .cellKey(let col, let row):
+            guard let layout = activeLayout() else { return }
+            let cellIndex = row * layout.columns + col
+            let keyMap = KeyMap.build(for: config.keyStyle, columns: layout.columns, rows: layout.rows)
+            guard let keyCode = keyMap.bindings.first(where: {
+                if case .direct(let idx) = $0.value { return idx == cellIndex }
+                return false
+            })?.key else {
+                NSLog("GriddleDemo: no direct key binding for cell (\(col),\(row))")
+                return
+            }
+            inputSource?.sendKeyDown(keyCode: keyCode, shiftHeld: false)
 
         case .arrowKey(let direction):
             inputSource?.sendKeyDown(keyCode: arrowKeyCode(direction), shiftHeld: false)
@@ -177,6 +143,10 @@ class DemoController {
         case .shiftArrow(let direction):
             inputSource?.sendKeyDown(keyCode: arrowKeyCode(direction), shiftHeld: true)
         }
+    }
+
+    private func activeLayout() -> GridLayout? {
+        config.layouts.first(where: { $0.id == config.activeLayoutID })
     }
 
     private func arrowKeyCode(_ direction: ArrowDirection) -> UInt16 {

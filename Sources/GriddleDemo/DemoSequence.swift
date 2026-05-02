@@ -6,21 +6,19 @@ enum ArrowDirection {
 }
 
 enum DemoAction {
-    case showDesktop
-    case showHUD(layout: String, theme: HUDTheme)
-    case highlight(col: Int, row: Int)
-    case highlightRegion(minCol: Int, minRow: Int, maxCol: Int, maxRow: Int)
-    case tileWindow(windowIndex: Int, cellIndex: Int)
-    case tileWindowToRegion(windowIndex: Int, minCol: Int, minRow: Int, maxCol: Int, maxRow: Int)
-    case dismissHUD
+    /// Reset windows to their initial scattered positions; dismisses HUD if visible.
     case resetWindows
-    /// Send an arrow key (drives HUDController cursor or extent).
+    /// Show the HUD with the given layout and theme (drives controller via modifier tap).
+    case showHUD(layout: String, theme: HUDTheme)
+    /// Press the cell key for (col, row) — anchors at choosingAnchor, confirms+tiles at expanding.
+    case cellKey(col: Int, row: Int)
+    /// Arrow key — reveals/moves cursor at choosingAnchor, moves extent at expanding.
     case arrowKey(ArrowDirection)
-    /// Send Return (anchor at choosingAnchor, confirm at expanding).
+    /// Return — anchors at choosingAnchor, confirms+tiles at expanding.
     case pressEnter
-    /// Send a shift-flags-changed event (held=true paints resize borders, false clears them).
+    /// Shift-flags-changed event (true paints resize borders, false clears them).
     case shiftHold(Bool)
-    /// Send Shift + arrow to drive HUDController's resize logic.
+    /// Shift+arrow — drives HUDController's resize logic.
     case shiftArrow(ArrowDirection)
 }
 
@@ -50,7 +48,7 @@ struct DemoSequence {
             DemoStep(
                 description: "Desktop with scattered windows",
                 hold: 1.5,
-                actions: [.resetWindows, .showDesktop]
+                actions: [.resetWindows]
             ),
             DemoStep(
                 description: "HUD grid overlay appears",
@@ -60,12 +58,12 @@ struct DemoSequence {
             DemoStep(
                 description: "User presses Q — top-left cell highlights",
                 hold: 1.0,
-                actions: [.highlight(col: 0, row: 0)]
+                actions: [.cellKey(col: 0, row: 0)]
             ),
             DemoStep(
-                description: "Window snaps to top-left cell",
+                description: "Press Q again — window snaps to top-left cell",
                 hold: 2.0,
-                actions: [.dismissHUD, .tileWindow(windowIndex: 0, cellIndex: 0)]
+                actions: [.cellKey(col: 0, row: 0)]
             ),
         ]
     )
@@ -78,7 +76,7 @@ struct DemoSequence {
             DemoStep(
                 description: "Desktop with scattered windows",
                 hold: 1.0,
-                actions: [.resetWindows, .showDesktop]
+                actions: [.resetWindows]
             ),
             DemoStep(
                 description: "HUD overlay appears (3x2 grid)",
@@ -88,17 +86,22 @@ struct DemoSequence {
             DemoStep(
                 description: "First key — top-left anchor selected",
                 hold: 1.0,
-                actions: [.highlight(col: 0, row: 0)]
+                actions: [.cellKey(col: 0, row: 0)]
             ),
             DemoStep(
-                description: "Second key — span expands to top-right",
-                hold: 1.5,
-                actions: [.highlightRegion(minCol: 0, minRow: 0, maxCol: 2, maxRow: 0)]
+                description: "Arrow right — span extends",
+                hold: 0.8,
+                actions: [.arrowKey(.right)]
             ),
             DemoStep(
-                description: "Window spans the full top row",
+                description: "Arrow right — span reaches top-right",
+                hold: 1.0,
+                actions: [.arrowKey(.right)]
+            ),
+            DemoStep(
+                description: "Enter — window spans the full top row",
                 hold: 2.0,
-                actions: [.dismissHUD, .tileWindowToRegion(windowIndex: 0, minCol: 0, minRow: 0, maxCol: 2, maxRow: 0)]
+                actions: [.pressEnter]
             ),
         ]
     )
@@ -111,7 +114,7 @@ struct DemoSequence {
             DemoStep(
                 description: "Desktop with scattered windows",
                 hold: 1.0,
-                actions: [.resetWindows, .showDesktop]
+                actions: [.resetWindows]
             ),
             DemoStep(
                 description: "HUD overlay appears (3x2 grid)",
@@ -121,37 +124,37 @@ struct DemoSequence {
             DemoStep(
                 description: "Arrow key pressed — cursor appears at top-left",
                 hold: 0.8,
-                actions: [.highlight(col: 0, row: 0)]
+                actions: [.arrowKey(.right)]
             ),
             DemoStep(
                 description: "Arrow right — cursor moves",
                 hold: 0.8,
-                actions: [.highlight(col: 1, row: 0)]
+                actions: [.arrowKey(.right)]
             ),
             DemoStep(
                 description: "Arrow right again",
                 hold: 0.8,
-                actions: [.highlight(col: 2, row: 0)]
+                actions: [.arrowKey(.right)]
             ),
             DemoStep(
                 description: "Arrow down",
                 hold: 0.8,
-                actions: [.highlight(col: 2, row: 1)]
+                actions: [.arrowKey(.down)]
             ),
             DemoStep(
                 description: "Enter — anchor set, now expanding",
                 hold: 1.0,
-                actions: [.highlightRegion(minCol: 2, minRow: 1, maxCol: 2, maxRow: 1)]
+                actions: [.pressEnter]
             ),
             DemoStep(
                 description: "Arrow left — selection expands",
                 hold: 0.8,
-                actions: [.highlightRegion(minCol: 1, minRow: 1, maxCol: 2, maxRow: 1)]
+                actions: [.arrowKey(.left)]
             ),
             DemoStep(
                 description: "Enter — window tiles to selection",
                 hold: 2.0,
-                actions: [.dismissHUD, .tileWindowToRegion(windowIndex: 0, minCol: 1, minRow: 1, maxCol: 2, maxRow: 1)]
+                actions: [.pressEnter]
             ),
         ]
     )
@@ -164,7 +167,7 @@ struct DemoSequence {
             DemoStep(
                 description: "Desktop with scattered windows",
                 hold: 1.0,
-                actions: [.resetWindows, .showDesktop]
+                actions: [.resetWindows]
             ),
             DemoStep(
                 description: "HUD overlay appears (2x2 grid)",
@@ -204,10 +207,7 @@ struct DemoSequence {
             DemoStep(
                 description: "Enter — window tiles with custom proportions",
                 hold: 2.0,
-                actions: [
-                    .shiftHold(false),
-                    .pressEnter
-                ]
+                actions: [.shiftHold(false), .pressEnter]
             ),
         ]
     )
