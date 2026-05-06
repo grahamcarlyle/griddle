@@ -63,3 +63,12 @@ Griddle is a macOS menu-bar utility (Swift, SwiftUI, Swift Package Manager) that
 - Requires macOS 13+ (Ventura). Swift tools version 5.9.
 - Uses Carbon Event API for global hotkeys (no modern replacement exists).
 - Accessibility permission is mandatory — the app prompts on first launch and exits if not granted.
+
+## Release & distribution
+
+CI (`.github/workflows/build.yml`) publishes a release on every push to `main`, tagged `v${{ github.run_number }}`. After publishing the versioned release, the **Bump cask in homebrew-tap** step clones `grahamcarlyle/homebrew-tap`, rewrites `version` and `sha256` in `Casks/g/griddle.rb`, and pushes — so anyone who installed via `brew install --cask grahamcarlyle/tap/griddle` gets the new build on `brew upgrade`.
+
+- The bump step uses a fine-scoped PAT stored as the `TAP_REPO_PAT` secret on this repo (write access scoped to `homebrew-tap` only). The default `GITHUB_TOKEN` can't push to other repos.
+- The cask's `livecheck` block uses a custom regex `/^v?(\d+)$/i` because build numbers are bare integers, not semver — the default `:github_latest` regex requires a dot.
+- The cask has a `postflight` block that strips the `com.apple.quarantine` xattr after install. Without it, Gatekeeper blocks first launch because `build.sh` ad-hoc-signs the bundle (no Developer ID, no notarization). This mirrors what the bundled `install.sh` does.
+- Versioned releases must NOT be marked `prerelease: true`; livecheck's `:github_latest` strategy hits `/releases/latest` which excludes prereleases. The rolling `latest` tag stays as a prerelease, which is fine — livecheck doesn't watch it.

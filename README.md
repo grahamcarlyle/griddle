@@ -17,9 +17,18 @@ Griddle is a lightweight menu-bar utility inspired by [GNOME Tactile](https://ex
 
 ## Getting started
 
-1. **[Download the latest release](https://github.com/grahamcarlyle/griddle/releases/latest)**
-2. Unzip and run `./install.sh` to install to `/Applications` (or pass a custom path: `./install.sh path/to/Griddle.app`)
-3. Launch Griddle and grant Accessibility permission when prompted, in **System Settings → Privacy & Security → Accessibility → Griddle**, then relaunch
+**Install with Homebrew:**
+
+```sh
+brew tap grahamcarlyle/tap
+brew install --cask griddle
+```
+
+Update later with `brew upgrade --cask griddle`.
+
+**Or download manually:** [grab the latest release](https://github.com/grahamcarlyle/griddle/releases/latest), unzip, and run `./install.sh` (pass a custom path with `./install.sh path/to/Griddle.app`).
+
+Then launch Griddle and grant Accessibility permission when prompted, in **System Settings → Privacy & Security → Accessibility → Griddle**, then relaunch.
 
 Requires macOS 13 (Ventura) or later.
 
