@@ -10,6 +10,7 @@ jobs:
     runs-on: macos-15
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -23,6 +24,24 @@ jobs:
         run: ./build.sh
         env:
           GRIDDLE_VERSION: ${{ github.run_number }}
+          GRIDDLE_SKIP_CODESIGN: "1"
+
+      - name: Sign with fulcio-codesign
+        run: |
+          set -euo pipefail
+          VERSION=0.7.8
+          TARBALL="fulcio-codesign-${VERSION}-aarch64-apple-darwin.tar.gz"
+          EXPECTED_SHA256="7f2fbca0dd9476fa27f16d558db1f03d2e3e0fac08d1b73ffd1cb34e6eaa29d7"
+
+          curl -fsSLO "https://github.com/danielbodart/fulcio-codesign/releases/download/v${VERSION}/${TARBALL}"
+          echo "${EXPECTED_SHA256}  ${TARBALL}" | shasum -a 256 -c -
+          tar -xzf "${TARBALL}" -C /tmp
+
+          BIN=.build/Griddle.app/Contents/MacOS/Griddle
+          /tmp/fulcio-codesign --identifier com.grahamcarlyle.griddle "$BIN"
+
+          codesign -dvvv "$BIN" 2>&1 | tee /tmp/codesign-output.txt
+          grep -q 'designated => identifier "com.grahamcarlyle.griddle"' /tmp/codesign-output.txt
 
       - name: Zip app bundle
         run: zip -r Griddle.zip .build/Griddle.app install.sh

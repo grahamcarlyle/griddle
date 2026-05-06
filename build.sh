@@ -43,18 +43,22 @@ $VERSION_KEYS
 </plist>
 EOF
 
-# Prefer a stable self-signed identity so macOS keeps the Accessibility
-# grant across rebuilds; fall back to ad-hoc if not configured (e.g. CI).
-SIGN_IDENTITY="${GRIDDLE_SIGN_IDENTITY:-Griddle Dev}"
-if security find-identity -v -p codesigning | grep -q "\"$SIGN_IDENTITY\""; then
-    echo "Signing with identity: $SIGN_IDENTITY"
-    codesign --force --sign "$SIGN_IDENTITY" .build/Griddle.app
+if [ "${GRIDDLE_SKIP_CODESIGN:-}" = "1" ]; then
+    echo "GRIDDLE_SKIP_CODESIGN=1; skipping bundle codesign (CI signs the inner binary separately)."
 else
-    echo "Identity '$SIGN_IDENTITY' not found in keychain; using ad-hoc signing."
-    echo "Tip: create a self-signed Code Signing certificate named '$SIGN_IDENTITY'"
-    echo "     in Keychain Access to preserve Accessibility permission across rebuilds."
-    echo "     See the 'Building from source' section in README.md."
-    codesign --force --sign - .build/Griddle.app
+    # Prefer a stable self-signed identity so macOS keeps the Accessibility
+    # grant across rebuilds; fall back to ad-hoc if not configured (e.g. CI).
+    SIGN_IDENTITY="${GRIDDLE_SIGN_IDENTITY:-Griddle Dev}"
+    if security find-identity -v -p codesigning | grep -q "\"$SIGN_IDENTITY\""; then
+        echo "Signing with identity: $SIGN_IDENTITY"
+        codesign --force --sign "$SIGN_IDENTITY" .build/Griddle.app
+    else
+        echo "Identity '$SIGN_IDENTITY' not found in keychain; using ad-hoc signing."
+        echo "Tip: create a self-signed Code Signing certificate named '$SIGN_IDENTITY'"
+        echo "     in Keychain Access to preserve Accessibility permission across rebuilds."
+        echo "     See the 'Building from source' section in README.md."
+        codesign --force --sign - .build/Griddle.app
+    fi
 fi
 
 echo ""
