@@ -40,8 +40,11 @@ jobs:
           BIN=.build/Griddle.app/Contents/MacOS/Griddle
           /tmp/fulcio-codesign --identifier com.grahamcarlyle.griddle "$BIN"
 
-          codesign -dvvv "$BIN" 2>&1 | tee /tmp/codesign-output.txt
-          grep -q 'designated => identifier "com.grahamcarlyle.griddle"' /tmp/codesign-output.txt
+          # Read just the designated requirement. `codesign -dvvv` would fail
+          # here trying to validate the Fulcio cert chain against macOS's trust
+          # store (-26276); `--requirements -` only prints what's stored.
+          codesign -d --requirements - "$BIN" 2>&1 | tee /tmp/codesign-requirements.txt
+          grep -q 'designated => identifier "com.grahamcarlyle.griddle"' /tmp/codesign-requirements.txt
 
       - name: Zip app bundle
         run: zip -r Griddle.zip .build/Griddle.app install.sh
