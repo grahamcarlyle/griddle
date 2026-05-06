@@ -51,18 +51,49 @@ jobs:
             After granting Accessibility permission, the app will appear as "Griddle (build ${{ github.run_number }})" in System Settings. You can remove old build entries from the Accessibility list.
 
       - name: Publish versioned release
+        id: versioned_release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
           name: Build ${{ github.run_number }}
-          prerelease: true
           files: Griddle.zip
           generate_release_notes: true
           body: |
             Build ${{ github.run_number }} from commit ${{ github.sha }}.
 
-            **Install:** Download `Griddle.zip`, unzip, and run `./install.sh` — this copies `Griddle.app` to `/Applications` and removes the quarantine flag.
+            **Install via Homebrew (recommended):**
+            ```
+            brew tap grahamcarlyle/tap
+            brew install --cask griddle
+            ```
+            Update later with `brew upgrade --cask griddle`.
+
+            **Install manually:** Download `Griddle.zip`, unzip, and run `./install.sh` — this copies `Griddle.app` to `/Applications` and removes the quarantine flag.
             You can also pass a custom path: `./install.sh path/to/Griddle.app`
 
             After granting Accessibility permission, the app will appear as "Griddle (build ${{ github.run_number }})" in System Settings. You can remove old build entries from the Accessibility list.
+
+      - name: Bump cask in homebrew-tap
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.TAP_REPO_PAT }}
+          VERSION: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          SHA=$(shasum -a 256 Griddle.zip | awk '{print $1}')
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/grahamcarlyle/homebrew-tap.git" tap
+          cd tap
+          # Replace version "..." and sha256 "..." in the cask file
+          sed -i.bak -E "s/^  version \".*\"/  version \"${VERSION}\"/" Casks/g/griddle.rb
+          sed -i.bak -E "s/^  sha256 \".*\"/  sha256 \"${SHA}\"/" Casks/g/griddle.rb
+          rm -f Casks/g/griddle.rb.bak
+          if git diff --quiet; then
+            echo "Cask already up to date; nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/g/griddle.rb
+          git commit -m "griddle ${VERSION}"
+          git push origin main
