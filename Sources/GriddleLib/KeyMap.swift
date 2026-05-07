@@ -226,7 +226,14 @@ extension KeyMap {
         return qwertyLabels[keyCode] ?? "?"
     }
 
+    /// Carbon's TIS / UCKeyTranslate / LMGetKbdType APIs aren't safe to call from multiple
+    /// threads simultaneously — concurrent callers can SIGABRT inside HIToolbox. In production
+    /// these are invoked from the main thread, but parallel test suites can race them.
+    private static let inputSourceLock = NSLock()
+
     private static func keyLabelFromInputSource(_ keyCode: UInt16) -> String? {
+        inputSourceLock.lock()
+        defer { inputSourceLock.unlock() }
         guard let source = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue(),
               let rawPtr = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) else {
             return nil
