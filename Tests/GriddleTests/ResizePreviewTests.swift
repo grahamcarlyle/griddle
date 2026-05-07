@@ -188,6 +188,35 @@ struct ResizePreviewTests {
         #expect(presenter.lastPreview == nil)
     }
 
+    @Test("shift already held when HUD opens emits no preview until released and re-pressed")
+    func shiftHeldAtHUDOpenSuppressed() {
+        let (controller, presenter) = makeController()
+        // Shift is already held while HUD is hidden (e.g. user pressed Shift+modifier+cycleKey).
+        controller.handleShiftFlagsChanged(held: true)
+        controller.handleModifierTap()  // open HUD with shift still held
+        #expect(presenter.lastPreview == nil)
+
+        // Releasing shift clears the suppression.
+        controller.handleShiftFlagsChanged(held: false)
+        #expect(presenter.lastPreview == nil)
+
+        // Pressing shift again now engages resize preview normally.
+        controller.handleShiftFlagsChanged(held: true)
+        #expect(presenter.lastPreview != nil)
+    }
+
+    @Test("shift+arrow keypress while suppressed does not emit resize preview")
+    func shiftArrowSuppressedNoPreview() {
+        let (controller, presenter) = makeController()
+        controller.handleShiftFlagsChanged(held: true)
+        controller.handleModifierTap()  // open HUD with shift held → suppressed
+        #expect(presenter.lastPreview == nil)
+
+        // Even sending arrow with shiftHeld=true should not engage the resize path.
+        controller.handleKeyDown(keyCode: arrowDown, shiftHeld: true)
+        #expect(presenter.lastPreview == nil)
+    }
+
     @Test("directional mode: middle cell highlights only the after-side borders")
     func directionalMiddle() {
         let (controller, presenter) = makeController(resizeMode: .directional)

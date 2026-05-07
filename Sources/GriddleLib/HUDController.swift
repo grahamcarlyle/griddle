@@ -36,6 +36,11 @@ public class HUDController: InputHandler {
 
     // Resize preview state
     private var shiftHeld: Bool = false
+    /// True when shift was already held at the moment the HUD opened.
+    /// Cleared on the next shift-up so the user can re-press to enter resize mode.
+    private var shiftSuppressedUntilRelease: Bool = false
+
+    private var effectiveShiftHeld: Bool { shiftHeld && !shiftSuppressedUntilRelease }
 
     private static let escapeKeyCode: UInt16 = 53
     private static let returnKeyCode: UInt16 = 36
@@ -70,6 +75,7 @@ public class HUDController: InputHandler {
     }
 
     public func handleShiftFlagsChanged(held: Bool) {
+        if !held { shiftSuppressedUntilRelease = false }
         shiftHeld = held
         updateResizePreview()
     }
@@ -77,6 +83,8 @@ public class HUDController: InputHandler {
     @discardableResult
     public func handleKeyDown(keyCode: UInt16, shiftHeld: Bool) -> Bool {
         guard isHUDVisible else { return false }
+
+        let effectiveShift = shiftHeld && !shiftSuppressedUntilRelease
 
         if keyCode == Self.escapeKeyCode {
             dismissHUD()
@@ -89,7 +97,7 @@ public class HUDController: InputHandler {
         }
 
         if keyCode == Self.arrowUp || keyCode == Self.arrowDown || keyCode == Self.arrowLeft || keyCode == Self.arrowRight {
-            if shiftHeld {
+            if effectiveShift {
                 handleShiftArrowKey(keyCode: keyCode)
             } else {
                 handleArrowKey(keyCode: keyCode)
@@ -98,7 +106,7 @@ public class HUDController: InputHandler {
         }
 
         // Shift+0 resets weights
-        if keyCode == Self.zeroKeyCode && shiftHeld {
+        if keyCode == Self.zeroKeyCode && effectiveShift {
             handleResetWeights()
             return true
         }
@@ -160,6 +168,7 @@ public class HUDController: InputHandler {
         self.activeLayout = layout
         self.editedLayout = layout
         self.weightsDirty = false
+        self.shiftSuppressedUntilRelease = shiftHeld
 
         updateResizePreview()
     }
@@ -413,7 +422,7 @@ public class HUDController: InputHandler {
     }
 
     private func updateResizePreview() {
-        guard isHUDVisible, shiftHeld, let layout = activeLayout else {
+        guard isHUDVisible, effectiveShiftHeld, let layout = activeLayout else {
             presenter.updateResizePreview(nil)
             return
         }
