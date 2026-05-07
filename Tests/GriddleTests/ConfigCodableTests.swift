@@ -43,13 +43,13 @@ struct ConfigCodableTests {
         let config = GriddleConfig(
             activeLayoutID: "custom",
             layouts: [layout],
-            modifier: .init(keys: ["cmd", "shift"])
+            modifier: .init(keys: ["cmd", "ctrl"])
         )
         let data = try JSONEncoder().encode(config)
         let decoded = try JSONDecoder().decode(GriddleConfig.self, from: data)
 
         #expect(decoded.layouts[0].cells == cells)
-        #expect(decoded.modifier.keys == ["cmd", "shift"])
+        #expect(decoded.modifier.keys == ["cmd", "ctrl"])
     }
 
     @Test("default config has expected built-in layouts")

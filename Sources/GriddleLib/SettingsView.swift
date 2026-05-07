@@ -229,7 +229,7 @@ public struct SettingsView: View {
                 DisclosureGroup(isExpanded: $hotkeysExpanded) {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            ForEach(["ctrl", "alt", "cmd", "shift"], id: \.self) { key in
+                            ForEach(["ctrl", "alt", "cmd"], id: \.self) { key in
                                 Toggle(key, isOn: Binding(
                                     get: { configStore.config.modifier.keys.contains(key) },
                                     set: { isOn in

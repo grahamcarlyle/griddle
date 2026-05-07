@@ -164,7 +164,7 @@ public struct GriddleConfig: Codable {
     public var screenLayoutPools: [String: [String]]
 
     public struct ModifierConfig: Codable {
-        /// Key modifiers used for grid bindings: "ctrl", "alt", "cmd", "shift"
+        /// Key modifiers used for grid bindings: "ctrl", "alt", "cmd"
         public var keys: [String]
 
         public init(keys: [String]) {
@@ -189,7 +189,10 @@ public struct GriddleConfig: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         activeLayoutID = try container.decode(String.self, forKey: .activeLayoutID)
         layouts = try container.decode([GridLayout].self, forKey: .layouts)
-        modifier = try container.decode(ModifierConfig.self, forKey: .modifier)
+        var decodedModifier = try container.decode(ModifierConfig.self, forKey: .modifier)
+        // Shift is reserved for the reverse-cycle hotkey; drop it from any legacy config.
+        decodedModifier.keys = decodedModifier.keys.filter { $0.lowercased() != "shift" }
+        modifier = decodedModifier
         keyStyle = try container.decodeIfPresent(KeyStyle.self, forKey: .keyStyle) ?? .spatial
         hudTheme = try container.decodeIfPresent(HUDTheme.self, forKey: .hudTheme) ?? .system
         cycleKey = try container.decodeIfPresent(CycleKey.self, forKey: .cycleKey) ?? .space

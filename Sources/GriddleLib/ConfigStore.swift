@@ -111,7 +111,7 @@ public class ConfigStore: ObservableObject {
         config.layouts[li].rowWeights = nil
     }
 
-    public func cycleLayout(on screen: ScreenInfo? = nil) {
+    public func cycleLayout(on screen: ScreenInfo? = nil, reverse: Bool = false) {
         let pool: [GridLayout]
         let currentID: String
 
@@ -125,7 +125,8 @@ public class ConfigStore: ObservableObject {
 
         guard pool.count > 1 else { return }
         let currentIndex = pool.firstIndex(where: { $0.id == currentID }) ?? 0
-        let nextID = pool[(currentIndex + 1) % pool.count].id
+        let delta = reverse ? -1 : 1
+        let nextID = pool[(currentIndex + delta + pool.count) % pool.count].id
 
         if let screen = screen {
             config.screenLayouts[screen.id] = nextID

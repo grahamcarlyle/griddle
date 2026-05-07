@@ -45,8 +45,8 @@ See the **[visual feature guide](docs/features.md)** for animated demos of each 
 - **Customisable grids** — built-in 2×2, 3×2, 3×3 layouts, or create your own (up to 6×4)
 - **Per-screen layouts** — assign different grids to different monitors
 - **HUD themes** — System, Green, High Contrast, Purple, or Orange
-- **Cycle layouts** — modifier + Space to show HUD and cycle through layouts (configurable key)
-- **Configurable modifiers** — any combination of Ctrl, Option, Cmd, Shift
+- **Cycle layouts** — modifier + Space to cycle forward, Shift+modifier+Space to cycle backward (configurable key)
+- **Configurable modifiers** — any combination of Ctrl, Option, Cmd
 - **Runs in the menu bar** — no Dock icon, minimal footprint
 - **Launch at login** — start tiling automatically
 
@@ -62,7 +62,7 @@ The examples below use the default modifiers (**Ctrl+Alt** on Mac with a US layo
 
 **Hotkey combo:** Press Ctrl+Alt+Q to instantly move the window to the top-left cell.
 
-**Cycle key:** Press Ctrl+Alt+Space to show the HUD with the current layout. Press again to cycle to the next layout, then select a cell.
+**Cycle key:** Press Ctrl+Alt+Space to show the HUD with the current layout. Press again to cycle to the next layout, then select a cell. Hold Shift (Ctrl+Alt+Shift+Space) to cycle backward.
 
 **Modifier tap:** Tap and release Ctrl+Alt to toggle a grid overlay on screen. Then:
 - Press a letter key to move the window to that cell

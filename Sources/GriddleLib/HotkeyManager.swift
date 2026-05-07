@@ -14,8 +14,10 @@ public class HotkeyManager {
     private var nextID: UInt32 = 1
     private var cycleHotKeyRef: EventHotKeyRef?
     private var cycleHotKeyID: UInt32 = 0
+    private var cycleReverseHotKeyRef: EventHotKeyRef?
+    private var cycleReverseHotKeyID: UInt32 = 0
     public weak var hudController: HUDController?
-    public var onLayoutCycle: (() -> Void)?
+    public var onLayoutCycle: ((_ reverse: Bool) -> Void)?
 
     // Prefix key state
     private struct PrefixState {
@@ -75,6 +77,13 @@ public class HotkeyManager {
         cycleHotKeyID = cycleID
         let cycleHKID = EventHotKeyID(signature: fourCharCode("GRDL"), id: cycleID)
         RegisterEventHotKey(config.cycleKey.keyCode, modifiers, cycleHKID, GetApplicationEventTarget(), 0, &cycleHotKeyRef)
+
+        // Register Shift+modifier+cycleKey to cycle backwards through layouts
+        let reverseID = nextID
+        nextID += 1
+        cycleReverseHotKeyID = reverseID
+        let reverseHKID = EventHotKeyID(signature: fourCharCode("GRDL"), id: reverseID)
+        RegisterEventHotKey(config.cycleKey.keyCode, modifiers | UInt32(shiftKey), reverseHKID, GetApplicationEventTarget(), 0, &cycleReverseHotKeyRef)
     }
 
     func unregisterAll() {
@@ -88,6 +97,9 @@ public class HotkeyManager {
         if let ref = cycleHotKeyRef { UnregisterEventHotKey(ref) }
         cycleHotKeyRef = nil
         cycleHotKeyID = 0
+        if let ref = cycleReverseHotKeyRef { UnregisterEventHotKey(ref) }
+        cycleReverseHotKeyRef = nil
+        cycleReverseHotKeyID = 0
         nextID = 1
     }
 
@@ -102,7 +114,11 @@ public class HotkeyManager {
                           nil,
                           &hotKeyID)
         if hotKeyID.id == cycleHotKeyID {
-            onLayoutCycle?()
+            onLayoutCycle?(false)
+            return noErr
+        }
+        if hotKeyID.id == cycleReverseHotKeyID {
+            onLayoutCycle?(true)
             return noErr
         }
 

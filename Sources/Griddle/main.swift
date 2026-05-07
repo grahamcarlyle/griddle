@@ -24,10 +24,10 @@ hudController.onLayoutEdited = { layout in
     configStore.updateLayout(layout)
     hotkeyManager.update(config: configStore.config)
 }
-hotkeyManager.onLayoutCycle = {
+hotkeyManager.onLayoutCycle = { reverse in
     let screen = displaySystem.screenForFocusedWindow()
     if hudController.isHUDVisible {
-        configStore.cycleLayout(on: screen)
+        configStore.cycleLayout(on: screen, reverse: reverse)
     }
     hudController.showHUD()
     inputSource.cancelModifierTap()  // Prevent modifier release from dismissing the HUD
